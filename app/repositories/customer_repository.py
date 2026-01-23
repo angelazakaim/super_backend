@@ -16,10 +16,23 @@ class CustomerRepository:
     
     @staticmethod
     def create(user_id, **kwargs):
-        """Create a new customer profile."""
+        """Create a new customer profile and commit immediately."""
         customer = Customer(user_id=user_id, **kwargs)
         db.session.add(customer)
         db.session.commit()
+        return customer
+    
+    @staticmethod
+    def create_without_commit(user_id, **kwargs):
+        """
+        Create a new customer profile WITHOUT committing (for transactional operations).
+        Use this when creating Customer + User atomically.
+        
+        Must be followed by db.session.commit() or will be rolled back.
+        """
+        customer = Customer(user_id=user_id, **kwargs)
+        db.session.add(customer)
+        db.session.flush()  # Generate ID but don't commit yet
         return customer
     
     @staticmethod
@@ -40,4 +53,8 @@ class CustomerRepository:
     @staticmethod
     def get_all(page=1, per_page=20):
         """Get all customers with pagination."""
-        return Customer.query.order_by(Customer.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        return Customer.query.order_by(Customer.created_at.desc()).paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )

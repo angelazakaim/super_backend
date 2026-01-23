@@ -22,13 +22,19 @@ class Category(db.Model):
     
     @property
     def slug(self):
-        """Generate slug from category name."""
+        """
+        Auto-generate slug from category name.
+        Slug is a URL-friendly version of the name.
+        
+        Example: "Electronics & Gadgets" → "electronics-gadgets"
+        Used in URLs: /categories/electronics-gadgets
+        """
         if not self.name:
             return ''
         slug = self.name.lower()
-        slug = re.sub(r'[^\w\s-]', '', slug)
-        slug = re.sub(r'[\s_-]+', '-', slug)
-        slug = slug.strip('-')
+        slug = re.sub(r'[^\w\s-]', '', slug)  # Remove special characters
+        slug = re.sub(r'[\s_-]+', '-', slug)  # Replace spaces with hyphens
+        slug = slug.strip('-')                 # Remove leading/trailing hyphens
         return slug
     
     def to_dict(self, include_children=False, include_products=False):
@@ -36,12 +42,12 @@ class Category(db.Model):
         data = {
             'id': self.id,
             'name': self.name,
-            'slug': self.slug,
+            'slug': self.slug,  # Auto-generated, always available
             'description': self.description,
             'parent_id': self.parent_id,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
         
         if include_children:

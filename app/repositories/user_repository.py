@@ -21,11 +21,25 @@ class UserRepository:
     
     @staticmethod
     def create(email, username, password, role='customer'):
-        """Create a new user."""
+        """Create a new user and commit immediately."""
         user = User(email=email, username=username, role=role)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
+        return user
+    
+    @staticmethod
+    def create_without_commit(email, username, password, role='customer'):
+        """
+        Create a new user WITHOUT committing (for transactional operations).
+        Use this when you need to create User + Profile atomically.
+        
+        Must be followed by db.session.commit() or will be rolled back.
+        """
+        user = User(email=email, username=username, role=role, is_active=True)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.flush()  # Generate ID but don't commit yet
         return user
     
     @staticmethod
@@ -52,7 +66,11 @@ class UserRepository:
         query = User.query
         if active_only:
             query = query.filter_by(is_active=True)
-        return query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        return query.order_by(User.created_at.desc()).paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
     
     @staticmethod
     def exists_by_email(email):
