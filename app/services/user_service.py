@@ -42,7 +42,8 @@ class UserService:
                 result['profile'] = customer.to_dict() if customer else None
             elif user.role in ['manager', 'cashier']:
                 employee = EmployeeRepository.get_by_user_id(user_id)
-                result['profile'] = employee.__dict__ if employee else None
+                # FIXED: Use to_dict() method instead of __dict__
+                result['profile'] = employee.to_dict(include_salary=True) if employee else None
         
         logger.info(f"Successfully fetched user: {user.username}")
         return result
@@ -80,7 +81,9 @@ class UserService:
         profile_data: Optional[dict] = None
     ) -> dict:
         """
-        Create a new user with profile.
+        Create a new user with profile using ATOMIC TRANSACTIONS.
+        
+        FIXED: Now uses create_without_commit() to prevent orphaned users!
         
         Args:
             email: User email
@@ -119,36 +122,39 @@ class UserService:
             raise ValueError("Invalid email format")
         
         # Validate password strength
-        if not UserService._is_strong_password(password):
-            logger.error("Weak password provided")
-            raise ValueError(
-                "Password must be at least 8 characters long and contain "
-                "letters and numbers"
-            )
+        is_valid, msg = UserService.validate_password_complexity(password)
+        if not is_valid:
+            logger.error(f"Weak password: {msg}")
+            raise ValueError(msg)
         
         try:
-            # Create user
-            user = UserRepository.create(
+            # ✅ ATOMIC TRANSACTION - Create user WITHOUT committing
+            user = UserRepository.create_without_commit(
                 email=email,
                 username=username,
                 password=password,
                 role=role
             )
+            logger.info(f"User object created (not committed): {user.email}, ID: {user.id}")
             
-            # Create profile based on role
+            # ✅ Create profile WITHOUT committing
             profile = None
             if role == 'customer':
-                profile = CustomerRepository.create(
+                profile = CustomerRepository.create_without_commit(
                     user_id=user.id,
                     **(profile_data or {})
                 )
+                logger.info(f"Customer profile created (not committed) for user {user.id}")
             elif role in ['manager', 'cashier']:
-                profile = EmployeeRepository.create(
+                profile = EmployeeRepository.create_without_commit(
                     user_id=user.id,
                     **(profile_data or {})
                 )
+                logger.info(f"Employee profile created (not committed) for user {user.id}")
             
-            logger.info(f"Successfully created user: {user.id} - {user.username}")
+            # ✅ COMMIT BOTH TOGETHER - Both saved or both fail!
+            db.session.commit()
+            logger.info(f"✅ Transaction committed: User {user.email} (ID: {user.id}) created successfully")
             
             return {
                 'user': user,
@@ -156,8 +162,9 @@ class UserService:
             }
             
         except Exception as e:
-            logger.error(f"Failed to create user: {e}", exc_info=True)
+            # ✅ ROLLBACK EVERYTHING - No orphaned users!
             db.session.rollback()
+            logger.error(f"❌ User creation failed, transaction rolled back: {e}", exc_info=True)
             raise ValueError(f"Failed to create user: {str(e)}")
     
     @staticmethod
@@ -253,14 +260,10 @@ class UserService:
                     logger.error(f"Employee profile not found for user: {user_id}")
                     raise ValueError("Employee profile not found")
                 
-                # Update employee (would need to implement update method in EmployeeRepository)
-                for key, value in kwargs.items():
-                    if hasattr(employee, key):
-                        setattr(employee, key, value)
-                db.session.commit()
-                
+                # FIXED: Use EmployeeRepository.update() method
+                updated_profile = EmployeeRepository.update(employee, **kwargs)
                 logger.info(f"Successfully updated employee profile for user: {user_id}")
-                return employee
+                return updated_profile
             else:
                 logger.error(f"User role '{user.role}' does not have a profile")
                 raise ValueError("User role does not have a profile")
@@ -383,8 +386,6 @@ class UserService:
         logger.info(f"Fetching all users (role={role}, active_only={active_only})")
         
         try:
-            # This would require updating UserRepository.get_all to support role filter
-            # For now, we'll use the existing method
             results = UserRepository.get_all(
                 page=page,
                 per_page=per_page,
@@ -409,7 +410,9 @@ class UserService:
     @staticmethod
     def _is_strong_password(password: str) -> bool:
         """
-        Validate password strength.
+        Validate password strength (basic check).
+        
+        DEPRECATED: Use validate_password_complexity() instead.
         
         Requirements:
         - At least 8 characters
