@@ -17,19 +17,33 @@ from datetime import datetime, timedelta
 import random
 
 def clear_data():
-    """Clear all existing data from database."""
+    """Clear all existing data from database safely."""
     print("🗑️  Clearing existing data...")
     
+    # Check if tables exist first
+    inspector = db.inspect(db.engine)
+    existing_tables = inspector.get_table_names()
+    
     # Order matters due to foreign key constraints
-    db.session.query(OrderItem).delete()
-    db.session.query(Order).delete()
-    db.session.query(CartItem).delete()
-    db.session.query(Cart).delete()
-    db.session.query(Product).delete()
-    db.session.query(Category).delete()
-    db.session.query(Employee).delete()
-    db.session.query(Customer).delete()
-    db.session.query(User).delete()
+    # Only delete from tables that exist
+    if 'order_items' in existing_tables:
+        db.session.query(OrderItem).delete()
+    if 'orders' in existing_tables:
+        db.session.query(Order).delete()
+    if 'cart_items' in existing_tables:
+        db.session.query(CartItem).delete()
+    if 'carts' in existing_tables:
+        db.session.query(Cart).delete()
+    if 'products' in existing_tables:
+        db.session.query(Product).delete()
+    if 'categories' in existing_tables:
+        db.session.query(Category).delete()
+    if 'employees' in existing_tables:
+        db.session.query(Employee).delete()
+    if 'customers' in existing_tables:
+        db.session.query(Customer).delete()
+    if 'users' in existing_tables:
+        db.session.query(User).delete()
     
     db.session.commit()
     print("✅ All data cleared!")
@@ -530,15 +544,15 @@ def seed_carts_and_orders(users, products):
         db.session.add(cart)
         db.session.flush()
         
-        # Add 2-3 random products to cart
+        # Add 2-3 random UNIQUE products to cart
         num_items = random.randint(2, 3)
-        for _ in range(num_items):
-            product = random.choice(products)
+        selected_products = random.sample(products, min(num_items, len(products)))  # No duplicates!
+        
+        for product in selected_products:
             cart_item = CartItem(
                 cart_id=cart.id,
                 product_id=product.id,
-                quantity=random.randint(1, 3),
-                price=product.price
+                quantity=random.randint(1, 3)
             )
             db.session.add(cart_item)
         
@@ -566,12 +580,20 @@ def seed_carts_and_orders(users, products):
             else:
                 payment_status = 'pending'
             
+            # Calculate tax (8%) and shipping
+            tax_rate = 0.08
+            shipping_cost = 10.00 if random.random() > 0.3 else 0.00  # 70% have shipping
+            
             order = Order(
                 order_number=f'ORD-{datetime.now().strftime("%Y%m%d")}-{orders_created + 1:04d}',
                 customer_id=customer.customer.id,
                 status=status,
-                payment_status=payment_status,
+                subtotal=0,  # Will calculate after adding items
+                tax=0,  # Will calculate after adding items
+                shipping_cost=shipping_cost,
+                total=0,  # Will calculate after adding items
                 payment_method=random.choice(['credit_card', 'debit_card', 'paypal']),
+                payment_status=payment_status,
                 shipping_address_line1=customer.customer.address_line1,
                 shipping_address_line2=customer.customer.address_line2,
                 shipping_city=customer.customer.city,
@@ -585,7 +607,7 @@ def seed_carts_and_orders(users, products):
             
             # Add 1-4 random products to order
             num_items = random.randint(1, 4)
-            order_total = 0
+            subtotal = 0
             
             for _ in range(num_items):
                 product = random.choice(products)
@@ -594,13 +616,23 @@ def seed_carts_and_orders(users, products):
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=product.id,
-                    quantity=quantity,
-                    price=product.price
+                    product_name=product.name,
+                    product_sku=product.sku,
+                    unit_price=product.price,
+                    quantity=quantity
                 )
                 db.session.add(order_item)
-                order_total += product.price * quantity
+                subtotal += float(product.price) * quantity
             
-            order.total_amount = order_total
+            # Calculate final amounts
+            tax = subtotal * tax_rate
+            total = subtotal + tax + shipping_cost
+            
+            # Update order with calculated amounts
+            order.subtotal = subtotal
+            order.tax = tax
+            order.total = total
+            
             orders_created += 1
     
     db.session.commit()
