@@ -37,10 +37,18 @@ def register():
                 'country': data.get('country')
             }
         elif role in ['manager', 'cashier']:
+            # Employees now have same contact fields as customers!
             profile_data = {
                 'first_name': data.get('first_name'),
                 'last_name': data.get('last_name'),
                 'phone': data.get('phone'),
+                'address_line1': data.get('address_line1'),
+                'address_line2': data.get('address_line2'),
+                'city': data.get('city'),
+                'state': data.get('state'),
+                'postal_code': data.get('postal_code'),
+                'country': data.get('country'),
+                'employee_id': data.get('employee_id'),
                 'hire_date': data.get('hire_date'),
                 'salary': data.get('salary')
             }
@@ -136,6 +144,7 @@ def get_current_user():
     try:
         from app.repositories.user_repository import UserRepository
         from app.repositories.customer_repository import CustomerRepository
+        from app.repositories.employee_repository import EmployeeRepository
         
         user_id = int(get_jwt_identity())  # Convert to int
         user = UserRepository.get_by_id(user_id)
@@ -143,11 +152,18 @@ def get_current_user():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        customer = CustomerRepository.get_by_user_id(user_id)
+        # Get appropriate profile based on role
+        profile = None
+        if user.role == 'customer':
+            customer = CustomerRepository.get_by_user_id(user_id)
+            profile = customer.to_dict() if customer else None
+        elif user.role in ['manager', 'cashier']:
+            employee = EmployeeRepository.get_by_user_id(user_id)
+            profile = employee.to_dict(include_salary=True) if employee else None
         
         return jsonify({
             'user': user.to_dict(),
-            'customer': customer.to_dict() if customer else None
+            'profile': profile
         }), 200
     
     except Exception as e:
