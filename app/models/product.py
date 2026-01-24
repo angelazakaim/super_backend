@@ -12,6 +12,7 @@ class Product(db.Model):
     price = db.Column(db.Numeric(10, 2), nullable=False)
     compare_price = db.Column(db.Numeric(10, 2))  # Original price for discounts
     sku = db.Column(db.String(100), unique=True, index=True)
+    barcode = db.Column(db.String(100), unique=True, index=True)  # ← ADDED for cashier barcode scanning
     stock_quantity = db.Column(db.Integer, default=0, nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     
@@ -63,6 +64,7 @@ class Product(db.Model):
             'compare_price': float(self.compare_price) if self.compare_price else None,
             'discount_percentage': self.discount_percentage,
             'sku': self.sku,
+            'barcode': self.barcode,  # ← ADDED to API response
             'stock_quantity': self.stock_quantity,
             'is_in_stock': self.is_in_stock,
             'category_id': self.category_id,
