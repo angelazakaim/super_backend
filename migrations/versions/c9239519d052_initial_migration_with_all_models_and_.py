@@ -1,8 +1,8 @@
-"""Complete schema
+"""Initial migration with all models and pagination
 
-Revision ID: 4e7aed8563e7
+Revision ID: c9239519d052
 Revises: 
-Create Date: 2026-01-24 22:44:11.050428
+Create Date: 2026-01-25 17:01:17.355952
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '4e7aed8563e7'
+revision = 'c9239519d052'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -78,7 +78,7 @@ def upgrade():
     sa.Column('postal_code', sa.String(length=20), nullable=True),
     sa.Column('country', sa.String(length=100), nullable=True),
     sa.Column('employee_id', sa.String(length=20), nullable=True),
-    sa.Column('hire_date', sa.DateTime(), nullable=True),
+    sa.Column('hire_date', sa.DateTime(), nullable=False),
     sa.Column('salary', sa.Float(), nullable=True),
     sa.Column('shift_start', sa.Time(), nullable=True),
     sa.Column('shift_end', sa.Time(), nullable=True),
@@ -175,6 +175,7 @@ def upgrade():
     sa.Column('unit_price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')

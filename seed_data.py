@@ -1,9 +1,10 @@
-"""
-Seed data script for E-Commerce 4-Role API
-Creates sample data for all models with complete address information.
-"""
+"""Seed data for e-commerce database with comprehensive test data."""
+import random
+from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
-from app import create_app, db
+from app import create_app
+from app.extensions import db
 from app.models.user import User
 from app.models.customer import Customer
 from app.models.employee import Employee
@@ -13,606 +14,628 @@ from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.order import Order
 from app.models.order_item import OrderItem
-from datetime import datetime, timedelta
-import random
+from app.enums import UserRole, OrderStatus, PaymentStatus, PaymentMethod
+
 
 def clear_data():
-    """Clear all existing data from database safely."""
+    """Clear all existing data from the database."""
     print("🗑️  Clearing existing data...")
     
-    # Check if tables exist first
-    inspector = db.inspect(db.engine)
-    existing_tables = inspector.get_table_names()
-    
     # Order matters due to foreign key constraints
-    # Only delete from tables that exist
-    if 'order_items' in existing_tables:
-        db.session.query(OrderItem).delete()
-    if 'orders' in existing_tables:
-        db.session.query(Order).delete()
-    if 'cart_items' in existing_tables:
-        db.session.query(CartItem).delete()
-    if 'carts' in existing_tables:
-        db.session.query(Cart).delete()
-    if 'products' in existing_tables:
-        db.session.query(Product).delete()
-    if 'categories' in existing_tables:
-        db.session.query(Category).delete()
-    if 'employees' in existing_tables:
-        db.session.query(Employee).delete()
-    if 'customers' in existing_tables:
-        db.session.query(Customer).delete()
-    if 'users' in existing_tables:
-        db.session.query(User).delete()
+    OrderItem.query.delete()
+    Order.query.delete()
+    CartItem.query.delete()
+    Cart.query.delete()
+    Product.query.delete()
+    Category.query.delete()
+    Customer.query.delete()
+    Employee.query.delete()
+    User.query.delete()
     
     db.session.commit()
     print("✅ All data cleared!")
 
-def seed_users():
-    """Create users with all roles."""
+
+def create_users():
+    """Create test users with different roles."""
     print("\n👥 Creating users...")
     
-    users_data = [
-        # Admins
-        {
-            'email': 'admin@ecommerce.com',
-            'username': 'admin',
-            'password': 'Admin123!',
-            'role': 'admin'
-        },
-        {
-            'email': 'superadmin@ecommerce.com',
-            'username': 'superadmin',
-            'password': 'Admin123!',
-            'role': 'admin'
-        },
-        
-        # Managers
-        {
-            'email': 'manager@ecommerce.com',
-            'username': 'manager',
-            'password': 'Manager123!',
-            'role': 'manager',
-            'profile': {
-                'first_name': 'Sarah',
-                'last_name': 'Johnson',
-                'phone': '(555) 101-2001',
-                'address_line1': '100 Business Park Drive',
-                'address_line2': 'Suite 500',
-                'city': 'New York',
-                'state': 'NY',
-                'postal_code': '10001',
-                'country': 'USA',
-                'employee_id': 'MGR-001',
-                'salary': 75000.00,
-                'hire_date': datetime.now() - timedelta(days=730)
-            }
-        },
-        {
-            'email': 'manager2@ecommerce.com',
-            'username': 'manager2',
-            'password': 'Manager123!',
-            'role': 'manager',
-            'profile': {
-                'first_name': 'Michael',
-                'last_name': 'Chen',
-                'phone': '(555) 101-2002',
-                'address_line1': '200 Corporate Blvd',
-                'city': 'Los Angeles',
-                'state': 'CA',
-                'postal_code': '90001',
-                'country': 'USA',
-                'employee_id': 'MGR-002',
-                'salary': 72000.00,
-                'hire_date': datetime.now() - timedelta(days=550)
-            }
-        },
-        
-        # Cashiers
-        {
-            'email': 'cashier@ecommerce.com',
-            'username': 'cashier',
-            'password': 'Cashier123!',
-            'role': 'cashier',
-            'profile': {
-                'first_name': 'Emma',
-                'last_name': 'Davis',
-                'phone': '(555) 201-3001',
-                'address_line1': '456 Oak Street',
-                'address_line2': 'Apt 12',
-                'city': 'Chicago',
-                'state': 'IL',
-                'postal_code': '60601',
-                'country': 'USA',
-                'employee_id': 'CASH-001',
-                'salary': 35000.00,
-                'hire_date': datetime.now() - timedelta(days=365)
-            }
-        },
-        {
-            'email': 'cashier2@ecommerce.com',
-            'username': 'cashier2',
-            'password': 'Cashier123!',
-            'role': 'cashier',
-            'profile': {
-                'first_name': 'James',
-                'last_name': 'Wilson',
-                'phone': '(555) 201-3002',
-                'address_line1': '789 Pine Avenue',
-                'city': 'Houston',
-                'state': 'TX',
-                'postal_code': '77001',
-                'country': 'USA',
-                'employee_id': 'CASH-002',
-                'salary': 33000.00,
-                'hire_date': datetime.now() - timedelta(days=200)
-            }
-        },
-        {
-            'email': 'cashier3@ecommerce.com',
-            'username': 'cashier3',
-            'password': 'Cashier123!',
-            'role': 'cashier',
-            'profile': {
-                'first_name': 'Maria',
-                'last_name': 'Garcia',
-                'phone': '(555) 201-3003',
-                'address_line1': '321 Elm Street',
-                'city': 'Phoenix',
-                'state': 'AZ',
-                'postal_code': '85001',
-                'country': 'USA',
-                'employee_id': 'CASH-003',
-                'salary': 34000.00,
-                'hire_date': datetime.now() - timedelta(days=150)
-            }
-        },
-        
-        # Customers
-        {
-            'email': 'customer1@example.com',
-            'username': 'customer1',
-            'password': 'Customer123!',
-            'role': 'customer',
-            'profile': {
-                'first_name': 'John',
-                'last_name': 'Smith',
-                'phone': '(555) 301-4001',
-                'address_line1': '123 Main Street',
-                'city': 'Seattle',
-                'state': 'WA',
-                'postal_code': '98101',
-                'country': 'USA'
-            }
-        },
-        {
-            'email': 'customer2@example.com',
-            'username': 'customer2',
-            'password': 'Customer123!',
-            'role': 'customer',
-            'profile': {
-                'first_name': 'Alice',
-                'last_name': 'Brown',
-                'phone': '(555) 301-4002',
-                'address_line1': '456 Park Avenue',
-                'address_line2': 'Apt 5B',
-                'city': 'Boston',
-                'state': 'MA',
-                'postal_code': '02101',
-                'country': 'USA'
-            }
-        },
-        {
-            'email': 'customer3@example.com',
-            'username': 'customer3',
-            'password': 'Customer123!',
-            'role': 'customer',
-            'profile': {
-                'first_name': 'Robert',
-                'last_name': 'Taylor',
-                'phone': '(555) 301-4003',
-                'address_line1': '789 Broadway',
-                'city': 'Miami',
-                'state': 'FL',
-                'postal_code': '33101',
-                'country': 'USA'
-            }
-        },
-        {
-            'email': 'customer4@example.com',
-            'username': 'customer4',
-            'password': 'Customer123!',
-            'role': 'customer',
-            'profile': {
-                'first_name': 'Jennifer',
-                'last_name': 'Martinez',
-                'phone': '(555) 301-4004',
-                'address_line1': '321 Lake Drive',
-                'city': 'Denver',
-                'state': 'CO',
-                'postal_code': '80201',
-                'country': 'USA'
-            }
-        },
-        {
-            'email': 'customer5@example.com',
-            'username': 'customer5',
-            'password': 'Customer123!',
-            'role': 'customer',
-            'profile': {
-                'first_name': 'David',
-                'last_name': 'Anderson',
-                'phone': '(555) 301-4005',
-                'address_line1': '654 Valley Road',
-                'city': 'Portland',
-                'state': 'OR',
-                'postal_code': '97201',
-                'country': 'USA'
-            }
-        }
+    users = []
+    
+    # 1. Admin User
+    admin = User(
+        email='admin@ecommerce.com',
+        username='admin',
+        role=UserRole.ADMIN.value,
+        is_active=True
+    )
+    admin.set_password('Admin123!')
+    users.append(admin)
+    print("  ✓ Created admin user")
+    
+    # 2. Manager User + Employee Profile
+    manager = User(
+        email='manager@ecommerce.com',
+        username='manager',
+        role=UserRole.MANAGER.value,
+        is_active=True
+    )
+    manager.set_password('Manager123!')
+    users.append(manager)
+    print("  ✓ Created manager user")
+    
+    # 3. Cashier User + Employee Profile
+    cashier = User(
+        email='cashier@ecommerce.com',
+        username='cashier',
+        role=UserRole.CASHIER.value,
+        is_active=True
+    )
+    cashier.set_password('Cashier123!')
+    users.append(cashier)
+    print("  ✓ Created cashier user")
+    
+    # 4-8. Customer Users (5 customers)
+    customer_data = [
+        ('john.doe@email.com', 'johndoe', 'John', 'Doe', '555-0101'),
+        ('jane.smith@email.com', 'janesmith', 'Jane', 'Smith', '555-0102'),
+        ('bob.wilson@email.com', 'bobwilson', 'Bob', 'Wilson', '555-0103'),
+        ('alice.brown@email.com', 'alicebrown', 'Alice', 'Brown', '555-0104'),
+        ('charlie.davis@email.com', 'charliedavis', 'Charlie', 'Davis', '555-0105'),
     ]
     
-    users = []
-    for user_data in users_data:
-        # Create user
-        user = User(
-            email=user_data['email'],
-            username=user_data['username'],
-            role=user_data['role']
+    for email, username, first, last, phone in customer_data:
+        customer_user = User(
+            email=email,
+            username=username,
+            role=UserRole.CUSTOMER.value,
+            is_active=True
         )
-        user.set_password(user_data['password'])
-        db.session.add(user)
-        db.session.flush()  # Get user.id
-        
-        # Create profile if data provided
-        if 'profile' in user_data:
-            profile_data = user_data['profile']
-            
-            if user_data['role'] == 'customer':
-                profile = Customer(
-                    user_id=user.id,
-                    first_name=profile_data.get('first_name'),
-                    last_name=profile_data.get('last_name'),
-                    phone=profile_data.get('phone'),
-                    address_line1=profile_data.get('address_line1'),
-                    address_line2=profile_data.get('address_line2'),
-                    city=profile_data.get('city'),
-                    state=profile_data.get('state'),
-                    postal_code=profile_data.get('postal_code'),
-                    country=profile_data.get('country')
-                )
-            elif user_data['role'] in ['manager', 'cashier']:
-                profile = Employee(
-                    user_id=user.id,
-                    first_name=profile_data.get('first_name'),
-                    last_name=profile_data.get('last_name'),
-                    phone=profile_data.get('phone'),
-                    address_line1=profile_data.get('address_line1'),
-                    address_line2=profile_data.get('address_line2'),
-                    city=profile_data.get('city'),
-                    state=profile_data.get('state'),
-                    postal_code=profile_data.get('postal_code'),
-                    country=profile_data.get('country'),
-                    employee_id=profile_data.get('employee_id'),
-                    salary=profile_data.get('salary'),
-                    hire_date=profile_data.get('hire_date', datetime.now())
-                )
-            
-            db.session.add(profile)
-        
-        users.append(user)
+        customer_user.set_password('Customer123!')
+        users.append(customer_user)
     
+    print(f"  ✓ Created {len(customer_data)} customer users")
+    
+    # Add all users to session
+    db.session.add_all(users)
     db.session.commit()
-    print(f"✅ Created {len(users)} users!")
+    
+    print(f"✅ Total users created: {len(users)}")
     return users
 
-def seed_categories():
-    """Create product categories."""
-    print("\n📁 Creating categories...")
+
+def create_employee_profiles(users):
+    """Create employee profiles for manager and cashier."""
+    print("\n👔 Creating employee profiles...")
     
-    categories_data = [
-        {
-            'name': 'Electronics',
-            'description': 'Electronic devices and accessories',
-            'subcategories': [
-                {'name': 'Smartphones', 'description': 'Mobile phones and accessories'},
-                {'name': 'Laptops', 'description': 'Portable computers'},
-                {'name': 'Tablets', 'description': 'Tablet devices'},
-                {'name': 'Audio', 'description': 'Headphones, speakers, and audio equipment'}
-            ]
-        },
-        {
-            'name': 'Clothing',
-            'description': 'Apparel and fashion',
-            'subcategories': [
-                {'name': 'Men\'s Clothing', 'description': 'Clothing for men'},
-                {'name': 'Women\'s Clothing', 'description': 'Clothing for women'},
-                {'name': 'Shoes', 'description': 'Footwear for all'}
-            ]
-        },
-        {
-            'name': 'Home & Garden',
-            'description': 'Home improvement and garden supplies',
-            'subcategories': [
-                {'name': 'Furniture', 'description': 'Home furniture'},
-                {'name': 'Kitchen', 'description': 'Kitchen appliances and tools'},
-                {'name': 'Garden Tools', 'description': 'Gardening equipment'}
-            ]
-        },
-        {
-            'name': 'Books',
-            'description': 'Books and literature',
-            'subcategories': [
-                {'name': 'Fiction', 'description': 'Fiction books'},
-                {'name': 'Non-Fiction', 'description': 'Non-fiction books'},
-                {'name': 'Textbooks', 'description': 'Educational textbooks'}
-            ]
-        },
-        {
-            'name': 'Sports & Outdoors',
-            'description': 'Sports equipment and outdoor gear',
-            'subcategories': [
-                {'name': 'Fitness', 'description': 'Fitness equipment'},
-                {'name': 'Camping', 'description': 'Camping gear'},
-                {'name': 'Team Sports', 'description': 'Team sports equipment'}
-            ]
-        }
+    employees = []
+    
+    # Find manager and cashier users
+    manager = next(u for u in users if u.role == UserRole.MANAGER.value)
+    cashier = next(u for u in users if u.role == UserRole.CASHIER.value)
+    
+    # Manager profile
+    manager_profile = Employee(
+        user_id=manager.id,
+        first_name='Sarah',
+        last_name='Johnson',
+        phone='555-0201',
+        address_line1='123 Manager Street',
+        city='New York',
+        state='NY',
+        postal_code='10001',
+        country='USA',
+        employee_id='MGR-001',
+        hire_date=datetime.now(timezone.utc) - timedelta(days=730),  # 2 years ago
+        salary=75000.00,
+        shift_start=datetime.strptime('09:00', '%H:%M').time(),
+        shift_end=datetime.strptime('17:00', '%H:%M').time()
+    )
+    employees.append(manager_profile)
+    
+    # Cashier profile
+    cashier_profile = Employee(
+        user_id=cashier.id,
+        first_name='Mike',
+        last_name='Anderson',
+        phone='555-0202',
+        address_line1='456 Cashier Avenue',
+        city='New York',
+        state='NY',
+        postal_code='10002',
+        country='USA',
+        employee_id='CSH-001',
+        hire_date=datetime.now(timezone.utc) - timedelta(days=365),  # 1 year ago
+        salary=45000.00,
+        shift_start=datetime.strptime('10:00', '%H:%M').time(),
+        shift_end=datetime.strptime('18:00', '%H:%M').time()
+    )
+    employees.append(cashier_profile)
+    
+    db.session.add_all(employees)
+    db.session.commit()
+    
+    print(f"✅ Created {len(employees)} employee profiles")
+    return employees
+
+
+def create_customer_profiles(users):
+    """Create customer profiles."""
+    print("\n🛍️  Creating customer profiles...")
+    
+    customers = []
+    customer_users = [u for u in users if u.role == UserRole.CUSTOMER.value]
+    
+    addresses = [
+        ('123 Main St', 'Apt 4B', 'New York', 'NY', '10001', 'USA'),
+        ('456 Oak Ave', None, 'Los Angeles', 'CA', '90001', 'USA'),
+        ('789 Pine Rd', 'Suite 100', 'Chicago', 'IL', '60601', 'USA'),
+        ('321 Elm St', None, 'Houston', 'TX', '77001', 'USA'),
+        ('654 Maple Dr', 'Unit 5', 'Phoenix', 'AZ', '85001', 'USA'),
     ]
+    
+    for i, user in enumerate(customer_users):
+        # Extract first and last name from username (e.g., 'johndoe' -> 'John', 'Doe')
+        username = user.username
+        if 'john' in username:
+            first, last = 'John', 'Doe'
+        elif 'jane' in username:
+            first, last = 'Jane', 'Smith'
+        elif 'bob' in username:
+            first, last = 'Bob', 'Wilson'
+        elif 'alice' in username:
+            first, last = 'Alice', 'Brown'
+        else:
+            first, last = 'Charlie', 'Davis'
+        
+        addr = addresses[i]
+        customer = Customer(
+            user_id=user.id,
+            first_name=first,
+            last_name=last,
+            phone=f'555-01{i+1:02d}',
+            address_line1=addr[0],
+            address_line2=addr[1],
+            city=addr[2],
+            state=addr[3],
+            postal_code=addr[4],
+            country=addr[5]
+        )
+        customers.append(customer)
+    
+    db.session.add_all(customers)
+    db.session.commit()
+    
+    print(f"✅ Created {len(customers)} customer profiles")
+    return customers
+
+
+def create_categories():
+    """Create product categories with hierarchy."""
+    print("\n📂 Creating categories...")
     
     categories = []
-    for cat_data in categories_data:
-        # Create parent category
-        category = Category(
-            name=cat_data['name'],
-            description=cat_data['description']
-        )
-        db.session.add(category)
-        db.session.flush()
-        categories.append(category)
-        
-        # Create subcategories
-        for subcat_data in cat_data.get('subcategories', []):
-            subcategory = Category(
-                name=subcat_data['name'],
-                description=subcat_data['description'],
-                parent_id=category.id
-            )
-            db.session.add(subcategory)
-            categories.append(subcategory)
     
+    # Root categories
+    electronics = Category(name='Electronics', description='Electronic devices and accessories', is_active=True)
+    clothing = Category(name='Clothing', description='Apparel and fashion', is_active=True)
+    home = Category(name='Home & Garden', description='Home improvement and garden supplies', is_active=True)
+    sports = Category(name='Sports & Outdoors', description='Sports equipment and outdoor gear', is_active=True)
+    books = Category(name='Books', description='Books and literature', is_active=True)
+    
+    categories.extend([electronics, clothing, home, sports, books])
+    
+    db.session.add_all(categories)
     db.session.commit()
-    print(f"✅ Created {len(categories)} categories!")
-    return categories
+    
+    # Subcategories - Electronics
+    computers = Category(name='Computers', description='Laptops, desktops, and accessories', parent_id=electronics.id, is_active=True)
+    phones = Category(name='Smartphones', description='Mobile phones and accessories', parent_id=electronics.id, is_active=True)
+    audio = Category(name='Audio', description='Headphones, speakers, and audio equipment', parent_id=electronics.id, is_active=True)
+    
+    # Subcategories - Clothing
+    mens = Category(name="Men's Clothing", description='Clothing for men', parent_id=clothing.id, is_active=True)
+    womens = Category(name="Women's Clothing", description='Clothing for women', parent_id=clothing.id, is_active=True)
+    
+    # Subcategories - Home & Garden
+    furniture = Category(name='Furniture', description='Home furniture', parent_id=home.id, is_active=True)
+    kitchen = Category(name='Kitchen', description='Kitchen appliances and utensils', parent_id=home.id, is_active=True)
+    
+    subcategories = [computers, phones, audio, mens, womens, furniture, kitchen]
+    
+    db.session.add_all(subcategories)
+    db.session.commit()
+    
+    all_categories = categories + subcategories
+    print(f"✅ Created {len(all_categories)} categories ({len(categories)} root, {len(subcategories)} subcategories)")
+    return all_categories
 
-def seed_products(categories):
-    """Create products."""
+
+def create_products(categories):
+    """Create sample products."""
     print("\n📦 Creating products...")
     
-    # Get subcategories for product assignment
-    smartphones = Category.query.filter_by(name='Smartphones').first()
-    laptops = Category.query.filter_by(name='Laptops').first()
-    tablets = Category.query.filter_by(name='Tablets').first()
-    audio = Category.query.filter_by(name='Audio').first()
-    mens_clothing = Category.query.filter_by(name='Men\'s Clothing').first()
-    womens_clothing = Category.query.filter_by(name='Women\'s Clothing').first()
-    shoes = Category.query.filter_by(name='Shoes').first()
-    
-    products_data = [
-        # Electronics
-        {
-            'name': 'iPhone 15 Pro',
-            'description': 'Latest iPhone with A17 Pro chip and titanium design',
-            'price': 999.99,
-            'compare_price': 1099.99,
-            'sku': 'IPHONE-15-PRO',
-            'barcode': '1234567890123',
-            'stock_quantity': 50,
-            'category_id': smartphones.id if smartphones else 1,
-            'weight': 0.221,
-            'is_featured': True
-        },
-        {
-            'name': 'Samsung Galaxy S24 Ultra',
-            'description': 'Premium Android smartphone with S Pen',
-            'price': 1199.99,
-            'compare_price': 1299.99,
-            'sku': 'GALAXY-S24-ULTRA',
-            'barcode': '1234567890124',
-            'stock_quantity': 40,
-            'category_id': smartphones.id if smartphones else 1,
-            'weight': 0.233,
-            'is_featured': True
-        },
-        {
-            'name': 'MacBook Pro 16"',
-            'description': 'Powerful laptop with M3 Max chip',
-            'price': 2499.99,
-            'compare_price': 2699.99,
-            'sku': 'MBP-16-M3',
-            'barcode': '1234567890125',
-            'stock_quantity': 25,
-            'category_id': laptops.id if laptops else 1,
-            'weight': 2.1,
-            'is_featured': True
-        },
-        {
-            'name': 'Dell XPS 15',
-            'description': 'Premium Windows laptop with OLED display',
-            'price': 1799.99,
-            'sku': 'DELL-XPS-15',
-            'barcode': '1234567890126',
-            'stock_quantity': 30,
-            'category_id': laptops.id if laptops else 1,
-            'weight': 1.8,
-            'is_featured': False
-        },
-        {
-            'name': 'iPad Pro 12.9"',
-            'description': 'Professional tablet with M2 chip',
-            'price': 1099.99,
-            'sku': 'IPAD-PRO-129',
-            'barcode': '1234567890127',
-            'stock_quantity': 35,
-            'category_id': tablets.id if tablets else 1,
-            'weight': 0.682,
-            'is_featured': True
-        },
-        {
-            'name': 'Sony WH-1000XM5',
-            'description': 'Industry-leading noise canceling headphones',
-            'price': 399.99,
-            'compare_price': 449.99,
-            'sku': 'SONY-WH1000XM5',
-            'barcode': '1234567890128',
-            'stock_quantity': 60,
-            'category_id': audio.id if audio else 1,
-            'weight': 0.25,
-            'is_featured': True
-        },
-        {
-            'name': 'AirPods Pro 2',
-            'description': 'Wireless earbuds with active noise cancellation',
-            'price': 249.99,
-            'sku': 'AIRPODS-PRO-2',
-            'barcode': '1234567890129',
-            'stock_quantity': 100,
-            'category_id': audio.id if audio else 1,
-            'weight': 0.05,
-            'is_featured': False
-        },
-        
-        # Clothing
-        {
-            'name': 'Men\'s Cotton T-Shirt',
-            'description': 'Comfortable cotton t-shirt in various colors',
-            'price': 29.99,
-            'sku': 'MENS-TSHIRT-001',
-            'barcode': '1234567890130',
-            'stock_quantity': 200,
-            'category_id': mens_clothing.id if mens_clothing else 2,
-            'weight': 0.2,
-            'is_featured': False
-        },
-        {
-            'name': 'Women\'s Summer Dress',
-            'description': 'Elegant floral summer dress',
-            'price': 79.99,
-            'compare_price': 99.99,
-            'sku': 'WOMENS-DRESS-001',
-            'barcode': '1234567890131',
-            'stock_quantity': 80,
-            'category_id': womens_clothing.id if womens_clothing else 2,
-            'weight': 0.3,
-            'is_featured': True
-        },
-        {
-            'name': 'Running Shoes',
-            'description': 'High-performance running shoes',
-            'price': 129.99,
-            'sku': 'SHOES-RUNNING-001',
-            'barcode': '1234567890132',
-            'stock_quantity': 120,
-            'category_id': shoes.id if shoes else 2,
-            'weight': 0.6,
-            'is_featured': True
-        }
-    ]
-    
     products = []
-    for prod_data in products_data:
-        product = Product(**prod_data)
-        db.session.add(product)
-        products.append(product)
     
+    # Get category IDs
+    computers_cat = next(c for c in categories if c.name == 'Computers')
+    phones_cat = next(c for c in categories if c.name == 'Smartphones')
+    audio_cat = next(c for c in categories if c.name == 'Audio')
+    mens_cat = next(c for c in categories if c.name == "Men's Clothing")
+    womens_cat = next(c for c in categories if c.name == "Women's Clothing")
+    furniture_cat = next(c for c in categories if c.name == 'Furniture')
+    kitchen_cat = next(c for c in categories if c.name == 'Kitchen')
+    
+    # Electronics - Computers
+    products.extend([
+        Product(
+            name='Dell XPS 15 Laptop',
+            description='15.6" high-performance laptop with Intel Core i7, 16GB RAM, 512GB SSD',
+            price=Decimal('1299.99'),
+            compare_price=Decimal('1499.99'),
+            sku='LAPTOP-DELL-XPS15',
+            barcode='1234567890001',
+            stock_quantity=25,
+            category_id=computers_cat.id,
+            weight=Decimal('2.0'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='MacBook Pro 14"',
+            description='Apple MacBook Pro with M3 chip, 18GB RAM, 512GB SSD',
+            price=Decimal('1999.99'),
+            compare_price=Decimal('2199.99'),
+            sku='LAPTOP-APPLE-MBP14',
+            barcode='1234567890002',
+            stock_quantity=15,
+            category_id=computers_cat.id,
+            weight=Decimal('1.6'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='Logitech MX Master 3S Mouse',
+            description='Advanced wireless mouse with precision scrolling',
+            price=Decimal('99.99'),
+            sku='MOUSE-LOGI-MX3S',
+            barcode='1234567890003',
+            stock_quantity=50,
+            category_id=computers_cat.id,
+            weight=Decimal('0.14'),
+            is_active=True,
+            is_featured=False
+        ),
+    ])
+    
+    # Electronics - Smartphones
+    products.extend([
+        Product(
+            name='iPhone 15 Pro',
+            description='Apple iPhone 15 Pro with A17 Pro chip, 256GB storage',
+            price=Decimal('999.99'),
+            compare_price=Decimal('1099.99'),
+            sku='PHONE-APPLE-IP15PRO',
+            barcode='1234567890010',
+            stock_quantity=30,
+            category_id=phones_cat.id,
+            weight=Decimal('0.22'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='Samsung Galaxy S24 Ultra',
+            description='Samsung flagship phone with 512GB storage and S Pen',
+            price=Decimal('1199.99'),
+            sku='PHONE-SAMSUNG-S24U',
+            barcode='1234567890011',
+            stock_quantity=20,
+            category_id=phones_cat.id,
+            weight=Decimal('0.23'),
+            is_active=True,
+            is_featured=True
+        ),
+    ])
+    
+    # Electronics - Audio
+    products.extend([
+        Product(
+            name='Sony WH-1000XM5 Headphones',
+            description='Premium noise-canceling wireless headphones',
+            price=Decimal('399.99'),
+            compare_price=Decimal('449.99'),
+            sku='AUDIO-SONY-WH1000XM5',
+            barcode='1234567890020',
+            stock_quantity=40,
+            category_id=audio_cat.id,
+            weight=Decimal('0.25'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='AirPods Pro (2nd Gen)',
+            description='Apple wireless earbuds with active noise cancellation',
+            price=Decimal('249.99'),
+            sku='AUDIO-APPLE-AIRPODSPRO2',
+            barcode='1234567890021',
+            stock_quantity=60,
+            category_id=audio_cat.id,
+            weight=Decimal('0.05'),
+            is_active=True,
+            is_featured=False
+        ),
+    ])
+    
+    # Clothing - Men's
+    products.extend([
+        Product(
+            name="Men's Classic Fit Jeans",
+            description='Comfortable denim jeans, available in multiple sizes',
+            price=Decimal('59.99'),
+            sku='CLOTH-MENS-JEANS-001',
+            barcode='1234567890030',
+            stock_quantity=100,
+            category_id=mens_cat.id,
+            weight=Decimal('0.60'),
+            is_active=True,
+            is_featured=False
+        ),
+        Product(
+            name="Men's Premium Cotton T-Shirt",
+            description='Soft, breathable cotton t-shirt in various colors',
+            price=Decimal('24.99'),
+            sku='CLOTH-MENS-TSHIRT-001',
+            barcode='1234567890031',
+            stock_quantity=150,
+            category_id=mens_cat.id,
+            weight=Decimal('0.20'),
+            is_active=True,
+            is_featured=False
+        ),
+    ])
+    
+    # Clothing - Women's
+    products.extend([
+        Product(
+            name="Women's Summer Dress",
+            description='Elegant floral print dress, perfect for summer',
+            price=Decimal('79.99'),
+            compare_price=Decimal('99.99'),
+            sku='CLOTH-WOMENS-DRESS-001',
+            barcode='1234567890040',
+            stock_quantity=75,
+            category_id=womens_cat.id,
+            weight=Decimal('0.30'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name="Women's Yoga Pants",
+            description='Comfortable, stretchy yoga pants with moisture-wicking fabric',
+            price=Decimal('49.99'),
+            sku='CLOTH-WOMENS-YOGA-001',
+            barcode='1234567890041',
+            stock_quantity=120,
+            category_id=womens_cat.id,
+            weight=Decimal('0.25'),
+            is_active=True,
+            is_featured=False
+        ),
+    ])
+    
+    # Home & Garden - Furniture
+    products.extend([
+        Product(
+            name='Modern Office Chair',
+            description='Ergonomic office chair with lumbar support',
+            price=Decimal('299.99'),
+            compare_price=Decimal('349.99'),
+            sku='FURN-CHAIR-OFFICE-001',
+            barcode='1234567890050',
+            stock_quantity=35,
+            category_id=furniture_cat.id,
+            weight=Decimal('15.0'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='Standing Desk',
+            description='Adjustable height standing desk, 60" x 30"',
+            price=Decimal('499.99'),
+            sku='FURN-DESK-STAND-001',
+            barcode='1234567890051',
+            stock_quantity=20,
+            category_id=furniture_cat.id,
+            weight=Decimal('35.0'),
+            is_active=True,
+            is_featured=True
+        ),
+    ])
+    
+    # Home & Garden - Kitchen
+    products.extend([
+        Product(
+            name='KitchenAid Stand Mixer',
+            description='Professional 5-quart stand mixer with multiple attachments',
+            price=Decimal('399.99'),
+            compare_price=Decimal('449.99'),
+            sku='KITCHEN-MIXER-KA5Q',
+            barcode='1234567890060',
+            stock_quantity=30,
+            category_id=kitchen_cat.id,
+            weight=Decimal('10.0'),
+            is_active=True,
+            is_featured=True
+        ),
+        Product(
+            name='Ninja Blender Professional',
+            description='1000W professional blender with multiple speeds',
+            price=Decimal('129.99'),
+            sku='KITCHEN-BLEND-NINJA',
+            barcode='1234567890061',
+            stock_quantity=45,
+            category_id=kitchen_cat.id,
+            weight=Decimal('4.5'),
+            is_active=True,
+            is_featured=False
+        ),
+    ])
+    
+    # Add a few low-stock items
+    products.append(
+        Product(
+            name='Limited Edition Mechanical Keyboard',
+            description='Premium mechanical keyboard with RGB lighting',
+            price=Decimal('179.99'),
+            sku='KB-MECH-LIMITED',
+            barcode='1234567890070',
+            stock_quantity=5,  # Low stock!
+            category_id=computers_cat.id,
+            weight=Decimal('1.2'),
+            is_active=True,
+            is_featured=True
+        )
+    )
+    
+    db.session.add_all(products)
     db.session.commit()
-    print(f"✅ Created {len(products)} products!")
+    
+    print(f"✅ Created {len(products)} products")
     return products
 
-def seed_carts_and_orders(users, products):
-    """Create sample carts and orders."""
-    print("\n🛒 Creating carts and orders...")
-    
-    # Get customers
-    customers = [u for u in users if u.role == 'customer']
+
+def create_carts_and_items(customers, products):
+    """Create shopping carts with items for some customers."""
+    print("\n🛒 Creating shopping carts...")
     
     carts_created = 0
-    orders_created = 0
+    items_created = 0
     
-    # Create carts for customers
-    for customer in customers[:3]:  # First 3 customers get carts
-        cart = Cart(customer_id=customer.customer.id)
+    # Create carts for first 3 customers
+    for i, customer in enumerate(customers[:3]):
+        cart = Cart(customer_id=customer.id)
         db.session.add(cart)
-        db.session.flush()
+        db.session.commit()
+        carts_created += 1
         
-        # Add 2-3 random UNIQUE products to cart
-        num_items = random.randint(2, 3)
-        selected_products = random.sample(products, min(num_items, len(products)))  # No duplicates!
+        # Add 2-4 random products to each cart
+        num_items = random.randint(2, 4)
+        selected_products = random.sample(products, num_items)
         
         for product in selected_products:
+            quantity = random.randint(1, 3)
             cart_item = CartItem(
                 cart_id=cart.id,
                 product_id=product.id,
-                quantity=random.randint(1, 3)
+                quantity=quantity
             )
             db.session.add(cart_item)
+            items_created += 1
         
-        carts_created += 1
+        db.session.commit()
     
-    # Create orders for customers
+    print(f"✅ Created {carts_created} carts with {items_created} items total")
+
+
+def create_orders(customers, products):
+    """Create sample orders with different statuses."""
+    print("\n📋 Creating orders...")
+    
+    orders = []
+    order_items = []
+    order_number_counter = 1000
+    
+    # Create orders for each customer
     for customer in customers:
-        # Each customer gets 1-2 orders
-        num_orders = random.randint(1, 2)
+        # Each customer gets 1-3 orders
+        num_orders = random.randint(1, 3)
         
-        for i in range(num_orders):
-            # Order created 1-30 days ago
-            days_ago = random.randint(1, 30)
-            created_date = datetime.now() - timedelta(days=days_ago)
+        for _ in range(num_orders):
+            order_number_counter += 1
             
-            # Random order status
-            statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
-            status = random.choice(statuses)
+            # Random order status (weighted towards completed orders)
+            status_choices = [
+                OrderStatus.DELIVERED.value,  # 40%
+                OrderStatus.DELIVERED.value,
+                OrderStatus.SHIPPED.value,     # 20%
+                OrderStatus.PROCESSING.value,  # 15%
+                OrderStatus.CONFIRMED.value,   # 15%
+                OrderStatus.PENDING.value,     # 5%
+                OrderStatus.CANCELLED.value,   # 5%
+            ]
+            status = random.choice(status_choices)
             
-            # Payment status based on order status
-            if status in ['delivered', 'shipped']:
-                payment_status = 'paid'
-            elif status == 'confirmed':
-                payment_status = random.choice(['paid', 'pending'])
+            # Random payment status
+            if status == OrderStatus.CANCELLED.value:
+                payment_status = PaymentStatus.REFUNDED.value
+            elif status in [OrderStatus.PENDING.value, OrderStatus.CONFIRMED.value]:
+                payment_status = random.choice([PaymentStatus.PENDING.value, PaymentStatus.PAID.value])
             else:
-                payment_status = 'pending'
+                payment_status = PaymentStatus.PAID.value
             
-            # Calculate tax (8%) and shipping
-            tax_rate = 0.08
-            shipping_cost = 10.00 if random.random() > 0.3 else 0.00  # 70% have shipping
+            # Calculate order date (older orders are more likely to be delivered)
+            if status == OrderStatus.DELIVERED.value:
+                days_ago = random.randint(7, 60)
+            elif status == OrderStatus.SHIPPED.value:
+                days_ago = random.randint(3, 7)
+            elif status == OrderStatus.PROCESSING.value:
+                days_ago = random.randint(1, 3)
+            else:
+                days_ago = random.randint(0, 2)
             
-            order = Order(
-                order_number=f'ORD-{datetime.now().strftime("%Y%m%d")}-{orders_created + 1:04d}',
-                customer_id=customer.customer.id,
-                status=status,
-                subtotal=0,  # Will calculate after adding items
-                tax=0,  # Will calculate after adding items
-                shipping_cost=shipping_cost,
-                total=0,  # Will calculate after adding items
-                payment_method=random.choice(['credit_card', 'debit_card', 'paypal']),
-                payment_status=payment_status,
-                shipping_address_line1=customer.customer.address_line1,
-                shipping_address_line2=customer.customer.address_line2,
-                shipping_city=customer.customer.city,
-                shipping_state=customer.customer.state,
-                shipping_postal_code=customer.customer.postal_code,
-                shipping_country=customer.customer.country,
-                created_at=created_date
-            )
-            db.session.add(order)
-            db.session.flush()
+            created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
             
-            # Add 1-4 random products to order
-            num_items = random.randint(1, 4)
-            subtotal = 0
+            # Select 1-4 random products
+            num_products = random.randint(1, 4)
+            order_products = random.sample(products, num_products)
             
-            for _ in range(num_items):
-                product = random.choice(products)
+            # Calculate totals
+            subtotal = Decimal('0.00')
+            for product in order_products:
                 quantity = random.randint(1, 2)
-                
+                subtotal += product.price * quantity
+            
+            tax = subtotal * Decimal('0.1')  # 10% tax
+            shipping_cost = Decimal('10.00') if subtotal < 100 else Decimal('0.00')  # Free shipping over $100
+            total = subtotal + tax + shipping_cost
+            
+            # Create order
+            order = Order(
+                order_number=f'ORD-{order_number_counter:06d}',
+                customer_id=customer.id,
+                status=status,
+                payment_status=payment_status,
+                payment_method=random.choice(PaymentMethod.values()),
+                subtotal=subtotal,
+                tax=tax,
+                shipping_cost=shipping_cost,
+                total=total,
+                shipping_address_line1=customer.address_line1,
+                shipping_address_line2=customer.address_line2,
+                shipping_city=customer.city,
+                shipping_state=customer.state,
+                shipping_postal_code=customer.postal_code,
+                shipping_country=customer.country,
+                created_at=created_at
+            )
+            
+            # Set status timestamps
+            if status in [OrderStatus.CONFIRMED.value, OrderStatus.PROCESSING.value, OrderStatus.SHIPPED.value, OrderStatus.DELIVERED.value]:
+                order.confirmed_at = created_at + timedelta(hours=2)
+            
+            if status in [OrderStatus.SHIPPED.value, OrderStatus.DELIVERED.value]:
+                order.shipped_at = created_at + timedelta(days=2)
+            
+            if status == OrderStatus.DELIVERED.value:
+                order.delivered_at = created_at + timedelta(days=5)
+            
+            orders.append(order)
+            db.session.add(order)
+            db.session.commit()
+            
+            # Create order items
+            for product in order_products:
+                quantity = random.randint(1, 2)
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=product.id,
@@ -621,57 +644,70 @@ def seed_carts_and_orders(users, products):
                     unit_price=product.price,
                     quantity=quantity
                 )
+                order_items.append(order_item)
                 db.session.add(order_item)
-                subtotal += float(product.price) * quantity
             
-            # Calculate final amounts
-            tax = subtotal * tax_rate
-            total = subtotal + tax + shipping_cost
-            
-            # Update order with calculated amounts
-            order.subtotal = subtotal
-            order.tax = tax
-            order.total = total
-            
-            orders_created += 1
+            db.session.commit()
     
-    db.session.commit()
-    print(f"✅ Created {carts_created} carts and {orders_created} orders!")
+    print(f"✅ Created {len(orders)} orders with {len(order_items)} order items")
+    print(f"   - Pending: {sum(1 for o in orders if o.status == OrderStatus.PENDING.value)}")
+    print(f"   - Confirmed: {sum(1 for o in orders if o.status == OrderStatus.CONFIRMED.value)}")
+    print(f"   - Processing: {sum(1 for o in orders if o.status == OrderStatus.PROCESSING.value)}")
+    print(f"   - Shipped: {sum(1 for o in orders if o.status == OrderStatus.SHIPPED.value)}")
+    print(f"   - Delivered: {sum(1 for o in orders if o.status == OrderStatus.DELIVERED.value)}")
+    print(f"   - Cancelled: {sum(1 for o in orders if o.status == OrderStatus.CANCELLED.value)}")
+    
+    return orders
 
-def main():
-    """Main seeding function."""
-    app = create_app()
+
+def seed_database():
+    """Main function to seed the database."""
+    print("=" * 60)
+    print("🌱 SEEDING DATABASE")
+    print("=" * 60)
     
-    with app.app_context():
-        print("🌱 Starting database seeding...")
-        print("=" * 50)
-        
-        # Clear existing data
-        clear_data()
-        
-        # Seed data in order
-        users = seed_users()
-        categories = seed_categories()
-        products = seed_products(categories)
-        seed_carts_and_orders(users, products)
-        
-        print("\n" + "=" * 50)
-        print("🎉 Database seeding completed successfully!")
-        print("\n📊 Summary:")
-        print(f"   Users: {User.query.count()}")
-        print(f"   - Admins: {User.query.filter_by(role='admin').count()}")
-        print(f"   - Managers: {User.query.filter_by(role='manager').count()}")
-        print(f"   - Cashiers: {User.query.filter_by(role='cashier').count()}")
-        print(f"   - Customers: {User.query.filter_by(role='customer').count()}")
-        print(f"   Categories: {Category.query.count()}")
-        print(f"   Products: {Product.query.count()}")
-        print(f"   Carts: {Cart.query.count()}")
-        print(f"   Orders: {Order.query.count()}")
-        print("\n🔑 Login Credentials:")
-        print("   Admin:    admin@ecommerce.com / Admin123!")
-        print("   Manager:  manager@ecommerce.com / Manager123!")
-        print("   Cashier:  cashier@ecommerce.com / Cashier123!")
-        print("   Customer: customer1@example.com / Customer123!")
+    # Clear existing data
+    clear_data()
+    
+    # Create data in order
+    users = create_users()
+    employees = create_employee_profiles(users)
+    customers = create_customer_profiles(users)
+    categories = create_categories()
+    products = create_products(categories)
+    create_carts_and_items(customers, products)
+    orders = create_orders(customers, products)
+    
+    print("\n" + "=" * 60)
+    print("✅ DATABASE SEEDING COMPLETE!")
+    print("=" * 60)
+    print("\n📊 Summary:")
+    print(f"   Users: {User.query.count()}")
+    print(f"   Customers: {Customer.query.count()}")
+    print(f"   Employees: {Employee.query.count()}")
+    print(f"   Categories: {Category.query.count()}")
+    print(f"   Products: {Product.query.count()}")
+    print(f"   Carts: {Cart.query.count()}")
+    print(f"   Cart Items: {CartItem.query.count()}")
+    print(f"   Orders: {Order.query.count()}")
+    print(f"   Order Items: {OrderItem.query.count()}")
+    print("\n🔑 Test Accounts:")
+    print("   Admin:")
+    print("     Email: admin@ecommerce.com")
+    print("     Password: Admin123!")
+    print("\n   Manager:")
+    print("     Email: manager@ecommerce.com")
+    print("     Password: Manager123!")
+    print("\n   Cashier:")
+    print("     Email: cashier@ecommerce.com")
+    print("     Password: Cashier123!")
+    print("\n   Customer (example):")
+    print("     Email: john.doe@email.com")
+    print("     Password: Customer123!")
+    print("=" * 60)
+
 
 if __name__ == '__main__':
-    main()
+    app = create_app()
+    with app.app_context():
+        seed_database()
