@@ -1,0 +1,81 @@
+{
+	"info": {
+		"name": "E-Commerce API - Final Testing (Pagination Included)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:5000/api"},
+		{"key": "access_token", "value": ""},
+		{"key": "product_id", "value": "1"},
+		{"key": "category_id", "value": "1"}
+	],
+	"item": [
+		{
+			"name": "01 - Pagination Tests",
+			"item": [
+				{
+					"name": "Products - Page 1 (10 per page)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/products?page=1&per_page=10"
+					}
+				},
+				{
+					"name": "Orders - Page 5 (10 per page)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/orders?page=5&per_page=10"
+					}
+				},
+				{
+					"name": "Users (Customers) - Large Page Size",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/users/customers?page=1&per_page=25"
+					}
+				},
+				{
+					"name": "Filtered Pagination (Category + Page)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/products?page=1&per_page=20&category_id={{category_id}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "02 - Cart & Checkout",
+			"item": [
+				{
+					"name": "Add to Cart",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/cart/items",
+						"body": {
+							"mode": "raw",
+							"raw": "{\"product_id\": {{product_id}}, \"quantity\": 2}"
+						}
+					}
+				},
+				{
+					"name": "View Cart",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/cart"
+					}
+				},
+				{
+					"name": "Checkout (Create Order)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/orders/checkout",
+						"body": {
+							"mode": "raw",
+							"raw": "{\"payment_method\": \"credit_card\", \"shipping_address\": \"123 Tech St\"}"
+						}
+					}
+				}
+			]
+		}
+	]
+}

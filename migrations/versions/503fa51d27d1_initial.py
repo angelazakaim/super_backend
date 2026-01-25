@@ -1,8 +1,8 @@
-"""Initial migration with all models and pagination
+"""initial
 
-Revision ID: c9239519d052
+Revision ID: 503fa51d27d1
 Revises: 
-Create Date: 2026-01-25 17:01:17.355952
+Create Date: 2026-01-25 22:28:58.556644
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c9239519d052'
+revision = '503fa51d27d1'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,6 +21,7 @@ def upgrade():
     op.create_table('categories',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('slug', sa.String(length=120), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('parent_id', sa.Integer(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -30,7 +31,7 @@ def upgrade():
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('categories', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_categories_name'), ['name'], unique=True)
+        batch_op.create_index(batch_op.f('ix_categories_slug'), ['slug'], unique=True)
 
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -92,10 +93,11 @@ def upgrade():
     op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=200), nullable=False),
+    sa.Column('slug', sa.String(length=250), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('compare_price', sa.Numeric(precision=10, scale=2), nullable=True),
-    sa.Column('sku', sa.String(length=100), nullable=True),
+    sa.Column('sku', sa.String(length=100), nullable=False),
     sa.Column('barcode', sa.String(length=100), nullable=True),
     sa.Column('stock_quantity', sa.Integer(), nullable=False),
     sa.Column('category_id', sa.Integer(), nullable=False),
@@ -114,6 +116,7 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_products_barcode'), ['barcode'], unique=True)
         batch_op.create_index(batch_op.f('ix_products_name'), ['name'], unique=False)
         batch_op.create_index(batch_op.f('ix_products_sku'), ['sku'], unique=True)
+        batch_op.create_index(batch_op.f('ix_products_slug'), ['slug'], unique=True)
 
     op.create_table('carts',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -193,6 +196,7 @@ def downgrade():
     op.drop_table('orders')
     op.drop_table('carts')
     with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_products_slug'))
         batch_op.drop_index(batch_op.f('ix_products_sku'))
         batch_op.drop_index(batch_op.f('ix_products_name'))
         batch_op.drop_index(batch_op.f('ix_products_barcode'))
@@ -206,7 +210,7 @@ def downgrade():
 
     op.drop_table('users')
     with op.batch_alter_table('categories', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_categories_name'))
+        batch_op.drop_index(batch_op.f('ix_categories_slug'))
 
     op.drop_table('categories')
     # ### end Alembic commands ###
