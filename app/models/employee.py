@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 
 class Employee(db.Model):
@@ -23,13 +23,16 @@ class Employee(db.Model):
     
     # Employment Information
     employee_id = db.Column(db.String(20), unique=True)
-    hire_date = db.Column(db.DateTime, default=datetime.utcnow)
+    hire_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     salary = db.Column(db.Float)
     shift_start = db.Column(db.Time)
     shift_end = db.Column(db.Time)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    #Angela note: we store in DB and backend UTC time. The fronend will convert to local time as needed. This will allow concsistency in time.
+    #Read document section "Handlig datetime Understanding lambda and the Timestamp Code "
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
+                          onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     @property
     def is_manager(self):

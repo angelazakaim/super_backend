@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 import re
 
@@ -11,10 +11,20 @@ class Category(db.Model):
     description = db.Column(db.Text)
     parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    #Angela note: we store in DB and backend UTC time. The fronend will convert to local time as needed. This will allow concsistency in time.
+    #Read document section "Handlig datetime Understanding lambda and the Timestamp Code "
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
+                          onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     # Self-referential relationship for hierarchical categories
+    #     children = db.relationship(
+    #     'Category',                              # Target: Category model
+    #     backref=db.backref('parent',            # Reverse: category.parent
+    #                        remote_side=[id]),    # Parent is "remote" side
+    #     cascade='all, delete-orphan'            # Delete children with parent
+    # )
+    
     children = db.relationship('Category', backref=db.backref('parent', remote_side=[id]), cascade='all, delete-orphan')
     
     # Products in this category

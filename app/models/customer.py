@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 
 class Customer(db.Model):
@@ -16,8 +16,11 @@ class Customer(db.Model):
     state = db.Column(db.String(100))
     postal_code = db.Column(db.String(20))
     country = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    #Angela note: we store in DB and backend UTC time. The fronend will convert to local time as needed. This will allow concsistency in time.
+    #Read document section "Handlig datetime Understanding lambda and the Timestamp Code "
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
+                          onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     # Relationships
     cart = db.relationship('Cart', backref='customer', uselist=False, cascade='all, delete-orphan')

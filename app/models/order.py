@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 
 class Order(db.Model):
@@ -37,8 +37,9 @@ class Order(db.Model):
     admin_notes = db.Column(db.Text)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
+                          onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     confirmed_at = db.Column(db.DateTime)
     shipped_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime)
