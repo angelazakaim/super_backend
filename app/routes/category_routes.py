@@ -22,11 +22,6 @@ def get_categories():
     try:
         parent_only = request.args.get('parent_only', 'false').lower() == 'true'
         
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService instead of CategoryRepository
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         categories = CategoryService.get_all_categories(parent_only=parent_only)
         
         return jsonify({
@@ -45,11 +40,6 @@ def get_category(category_id):
     PUBLIC - No authentication required.
     """
     try:
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService with validation
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         category = CategoryService.get_category(category_id)
         return jsonify(category.to_dict(include_children=True, include_products=True)), 200
     
@@ -67,11 +57,6 @@ def get_category_by_slug(slug):
     PUBLIC - No authentication required.
     """
     try:
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         category = CategoryService.get_category_by_slug(slug)
         return jsonify(category.to_dict(include_children=True, include_products=True)), 200
     
@@ -108,11 +93,6 @@ def update_category(category_id):
         
         logger.info(f"Updating category {category_id} with data: {data}")
         
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService with validation
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         category = CategoryService.update_category(category_id, **data)
         
         return jsonify({
@@ -149,11 +129,6 @@ def create_subcategory(parent_id):
         
         logger.info(f"Creating subcategory under {parent_id} with data: {data}")
         
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService with validation
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         category = CategoryService.create_category(**data)
         
         return jsonify({
@@ -193,11 +168,6 @@ def create_category():
             logger.warning("Missing required field: name")
             return jsonify({'error': 'name is required'}), 400
         
-<<<<<<< HEAD
-        
-=======
-        # ✅ FIXED: Now calls CategoryService with validation
->>>>>>> 6b02736e48578c67e3599ec69b5d09113f9f62f0
         category = CategoryService.create_category(**data)
         logger.info(f"Category created successfully: {category.name} (ID: {category.id})")
         
@@ -224,7 +194,6 @@ def delete_category(category_id):
     """
     try:
         logger.info(f"Deleting category {category_id}")
-        
         
         # Service checks for products and children automatically
         CategoryService.delete_category(category_id)
@@ -264,7 +233,6 @@ def reorder_categories():
             
             if not category_id:
                 continue
-            
             
             try:
                 CategoryService.update_category(category_id, parent_id=parent_id)

@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_customer_id_from_user():
-    """✅ FIXED: Now uses UserService instead of CustomerRepository."""
     """Helper to get customer ID from current user."""
     user_id = get_jwt_identity()
     customer_id = UserService.get_customer_id(int(user_id))

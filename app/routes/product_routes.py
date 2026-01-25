@@ -92,25 +92,24 @@ def search_products():
     """
     Search products by SKU or barcode.
     STAFF ONLY - Cashier, Manager, Admin can access.
+    
     """
     try:
         sku = request.args.get('sku')
         barcode = request.args.get('barcode')
         
+        
         if sku:
-            from app.repositories.product_repository import ProductRepository
-            product = ProductRepository.get_by_sku(sku)
+            product = ProductService.get_product_by_sku(sku)
         elif barcode:
-            from app.repositories.product_repository import ProductRepository
-            product = ProductRepository.get_by_barcode(barcode)
+            product = ProductService.get_product_by_barcode(barcode)
         else:
             return jsonify({'error': 'SKU or barcode required'}), 400
         
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
         return jsonify(product.to_dict(include_category=True)), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         logger.error(f"Error searching product: {e}", exc_info=True)
         return jsonify({'error': 'Failed to search product'}), 500
@@ -400,22 +399,19 @@ def permanently_delete_product(product_id):
     """
     Permanently delete product from database.
     ADMIN ONLY - Cannot be undone!
+    
     """
     try:
-        from app.repositories.product_repository import ProductRepository
-        product = ProductRepository.get_by_id(product_id)
         
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        
-        # Hard delete
-        ProductRepository.delete(product)
+        ProductService.hard_delete_product(product_id)
         
         return jsonify({
             'message': 'Product permanently deleted',
             'warning': 'This action cannot be undone'
         }), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         logger.error(f"Error permanently deleting product: {e}", exc_info=True)
         return jsonify({'error': 'Failed to delete product'}), 500
