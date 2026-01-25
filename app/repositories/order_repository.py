@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.enums import OrderStatus
+
 
 class OrderRepository:
     """Repository for Order and OrderItem model operations."""
@@ -25,6 +27,15 @@ class OrderRepository:
         return order
     
     @staticmethod
+    def update(order, **kwargs):
+        """Update order attributes."""
+        for key, value in kwargs.items():
+            if hasattr(order, key):
+                setattr(order, key, value)
+        db.session.commit()
+        return order
+    
+    @staticmethod
     def add_item(order, product, quantity):
         """Add item to order."""
         order_item = OrderItem(
@@ -41,16 +52,16 @@ class OrderRepository:
     
     @staticmethod
     def update_status(order, status):
-        """Update order status."""
+        """Update order status with automatic timestamp management."""
         order.status = status
         
-        # Set timestamps based on status
-        if status == 'confirmed' and not order.confirmed_at:
-            order.confirmed_at = datetime.utcnow()
-        elif status == 'shipped' and not order.shipped_at:
-            order.shipped_at = datetime.utcnow()
-        elif status == 'delivered' and not order.delivered_at:
-            order.delivered_at = datetime.utcnow()
+        # Set timestamps based on status using enum values
+        if status == OrderStatus.CONFIRMED.value and not order.confirmed_at:
+            order.confirmed_at = datetime.now(timezone.utc)
+        elif status == OrderStatus.SHIPPED.value and not order.shipped_at:
+            order.shipped_at = datetime.now(timezone.utc)
+        elif status == OrderStatus.DELIVERED.value and not order.delivered_at:
+            order.delivered_at = datetime.now(timezone.utc)
         
         db.session.commit()
         return order
@@ -65,7 +76,9 @@ class OrderRepository:
     @staticmethod
     def get_by_customer(customer_id, page=1, per_page=20):
         """Get orders by customer with pagination."""
-        return Order.query.filter_by(customer_id=customer_id).order_by(Order.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        return Order.query.filter_by(customer_id=customer_id)\
+            .order_by(Order.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
     
     @staticmethod
     def get_all(page=1, per_page=20, status=None):
@@ -75,7 +88,22 @@ class OrderRepository:
         if status:
             query = query.filter_by(status=status)
         
-        return query.order_by(Order.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        return query.order_by(Order.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+    
+    @staticmethod
+    def get_by_date_range(start_date, end_date, page=1, per_page=20, status=None):
+        """Get orders within a date range."""
+        query = Order.query.filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        )
+        
+        if status:
+            query = query.filter_by(status=status)
+        
+        return query.order_by(Order.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
     
     @staticmethod
     def delete(order):

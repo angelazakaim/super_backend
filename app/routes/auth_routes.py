@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.auth_service import AuthService
+from app.enums import UserRole
 import logging
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 logger = logging.getLogger(__name__)
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -20,11 +22,17 @@ def register():
                 return jsonify({'error': f'{field} is required'}), 400
         
         # Extract role (default to customer)
-        role = data.get('role', 'customer')
+        role = data.get('role', UserRole.CUSTOMER.value)
+        
+        # Validate role
+        if not UserRole.is_valid(role):
+            return jsonify({
+                'error': f'Invalid role. Must be one of: {", ".join(UserRole.values())}'
+            }), 400
         
         # Extract profile data based on role
         profile_data = {}
-        if role == 'customer':
+        if role == UserRole.CUSTOMER.value:
             profile_data = {
                 'first_name': data.get('first_name'),
                 'last_name': data.get('last_name'),
@@ -36,7 +44,7 @@ def register():
                 'postal_code': data.get('postal_code'),
                 'country': data.get('country')
             }
-        elif role in ['manager', 'cashier']:
+        elif role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             # Employees now have same contact fields as customers!
             profile_data = {
                 'first_name': data.get('first_name'),
@@ -78,6 +86,7 @@ def register():
         # Return the actual error message for debugging
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """Login user."""
@@ -100,6 +109,7 @@ def login():
         logger.error(f"Login failed: {e}", exc_info=True)
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
+
 @auth_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh():
@@ -111,6 +121,7 @@ def refresh():
     except Exception as e:
         logger.error(f"Token refresh failed: {e}", exc_info=True)
         return jsonify({'error': f'Token refresh failed: {str(e)}'}), 401
+
 
 @auth_bp.route('/change-password', methods=['POST'])
 @jwt_required()
@@ -137,6 +148,7 @@ def change_password():
         logger.error(f"Password change failed: {e}", exc_info=True)
         return jsonify({'error': f'Password change failed: {str(e)}'}), 500
 
+
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
@@ -154,10 +166,10 @@ def get_current_user():
         
         # Get appropriate profile based on role
         profile = None
-        if user.role == 'customer':
+        if user.role == UserRole.CUSTOMER.value:
             customer = CustomerRepository.get_by_user_id(user_id)
             profile = customer.to_dict() if customer else None
-        elif user.role in ['manager', 'cashier']:
+        elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             employee = EmployeeRepository.get_by_user_id(user_id)
             profile = employee.to_dict(include_salary=True) if employee else None
         
@@ -169,6 +181,7 @@ def get_current_user():
     except Exception as e:
         logger.error(f"Failed to fetch user: {e}", exc_info=True)
         return jsonify({'error': f'Failed to fetch user: {str(e)}'}), 500
+
 
 @auth_bp.route('/debug-token', methods=['GET'])
 @jwt_required()

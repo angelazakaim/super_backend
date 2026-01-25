@@ -2,6 +2,7 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt
+from app.enums import UserRole
 
 
 def admin_required(fn):
@@ -14,11 +15,11 @@ def admin_required(fn):
         claims = get_jwt()
         role = claims.get('role')
         
-        if role != 'admin':
+        if role != UserRole.ADMIN.value:
             return jsonify({
                 'error': 'Admin access required',
                 'your_role': role,
-                'required_role': 'admin'
+                'required_role': UserRole.ADMIN.value
             }), 403
         
         return fn(*args, **kwargs)
@@ -35,11 +36,11 @@ def manager_required(fn):
         claims = get_jwt()
         role = claims.get('role')
         
-        if role not in ['admin', 'manager']:
+        if role not in UserRole.management_roles():
             return jsonify({
                 'error': 'Manager access required',
                 'your_role': role,
-                'required_roles': ['admin', 'manager']
+                'required_roles': UserRole.management_roles()
             }), 403
         
         return fn(*args, **kwargs)
@@ -56,11 +57,11 @@ def staff_required(fn):
         claims = get_jwt()
         role = claims.get('role')
         
-        if role not in ['admin', 'manager', 'cashier']:
+        if role not in UserRole.staff_roles():
             return jsonify({
                 'error': 'Staff access required',
                 'your_role': role,
-                'required_roles': ['admin', 'manager', 'cashier']
+                'required_roles': UserRole.staff_roles()
             }), 403
         
         return fn(*args, **kwargs)
@@ -78,7 +79,7 @@ def customer_required(fn):
         claims = get_jwt()
         role = claims.get('role')
         
-        if role not in ['customer', 'admin', 'manager', 'cashier']:
+        if role not in UserRole.values():
             return jsonify({
                 'error': 'Authentication required',
                 'your_role': role
@@ -98,7 +99,7 @@ def admin_only(fn):
         claims = get_jwt()
         role = claims.get('role')
         
-        if role != 'admin':
+        if role != UserRole.ADMIN.value:
             return jsonify({
                 'error': 'This action requires admin privileges',
                 'your_role': role,
@@ -115,7 +116,7 @@ def has_permission(required_roles):
     Helper to check if user has required role.
     
     Usage:
-        if not has_permission(['admin', 'manager']):
+        if not has_permission([UserRole.ADMIN.value, UserRole.MANAGER.value]):
             return jsonify({'error': 'Access denied'}), 403
     """
     claims = get_jwt()
@@ -131,19 +132,19 @@ def get_current_user_role():
 
 def is_admin():
     """Check if current user is admin."""
-    return get_current_user_role() == 'admin'
+    return get_current_user_role() == UserRole.ADMIN.value
 
 
 def is_manager():
     """Check if current user is manager or admin."""
-    return get_current_user_role() in ['admin', 'manager']
+    return get_current_user_role() in UserRole.management_roles()
 
 
 def is_staff():
     """Check if current user is staff (cashier, manager, or admin)."""
-    return get_current_user_role() in ['admin', 'manager', 'cashier']
+    return get_current_user_role() in UserRole.staff_roles()
 
 
 def is_customer():
     """Check if current user is customer."""
-    return get_current_user_role() == 'customer'
+    return get_current_user_role() == UserRole.CUSTOMER.value

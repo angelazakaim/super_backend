@@ -4,7 +4,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.order_service import OrderService
 from app.repositories.customer_repository import CustomerRepository
 from app.utils.decorators import admin_only, manager_required, staff_required
-from datetime import datetime, timedelta
+from app.enums import OrderStatus, PaymentStatus, UserRole
+from datetime import datetime, timezone, timedelta
 import logging
 
 order_bp = Blueprint('orders', __name__, url_prefix='/api/orders')
@@ -135,14 +136,14 @@ def cancel_order(order_id):
         customer_id = get_customer_id_from_user()
         order = OrderService.get_order(order_id, customer_id)
         
-        # Check if order can be cancelled
-        if order.status in ['delivered', 'cancelled', 'refunded']:
+        # Check if order can be cancelled (using enum values)
+        if order.status in [OrderStatus.DELIVERED.value, OrderStatus.CANCELLED.value, OrderStatus.REFUNDED.value]:
             return jsonify({
                 'error': f'Cannot cancel order with status: {order.status}',
                 'message': 'Please contact customer support for assistance'
             }), 400
         
-        order = OrderService.update_order_status(order_id, 'cancelled')
+        order = OrderService.update_order_status(order_id, OrderStatus.CANCELLED.value)
         
         return jsonify({
             'message': 'Order cancelled successfully',
@@ -172,11 +173,11 @@ def get_today_orders():
         from app.repositories.order_repository import OrderRepository
         
         # Get orders from today
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         
         pagination = OrderRepository.get_by_date_range(
             start_date=today_start,
-            end_date=datetime.now(),
+            end_date=datetime.now(timezone.utc),
             page=1,
             per_page=100
         )
@@ -235,20 +236,26 @@ def update_order_status(order_id):
         
         status = data['status']
         
+        # Validate status is valid
+        if not OrderStatus.is_valid(status):
+            return jsonify({
+                'error': f'Invalid status. Must be one of: {", ".join(OrderStatus.values())}'
+            }), 400
+        
         # Check permissions based on role
         from app.utils.decorators import get_current_user_role
         role = get_current_user_role()
         
         # Cashiers can only set to: confirmed, processing
-        if role == 'cashier' and status not in ['confirmed', 'processing']:
+        if role == UserRole.CASHIER.value and status not in [OrderStatus.CONFIRMED.value, OrderStatus.PROCESSING.value]:
             return jsonify({
                 'error': 'Cashiers can only update status to: confirmed, processing',
                 'your_role': role,
-                'allowed_statuses': ['confirmed', 'processing']
+                'allowed_statuses': [OrderStatus.CONFIRMED.value, OrderStatus.PROCESSING.value]
             }), 403
         
         # Managers cannot set to: refunded (admin only)
-        if role == 'manager' and status == 'refunded':
+        if role == UserRole.MANAGER.value and status == OrderStatus.REFUNDED.value:
             return jsonify({
                 'error': 'Only admins can set status to refunded',
                 'message': 'Please contact an administrator for refunds'
@@ -283,9 +290,15 @@ def update_payment_status(order_id):
         
         payment_status = data['payment_status']
         
+        # Validate payment status is valid
+        if not PaymentStatus.is_valid(payment_status):
+            return jsonify({
+                'error': f'Invalid payment status. Must be one of: {", ".join(PaymentStatus.values())}'
+            }), 400
+        
         # Refunded payment status is admin only
         from app.utils.decorators import is_admin
-        if payment_status == 'refunded' and not is_admin():
+        if payment_status == PaymentStatus.REFUNDED.value and not is_admin():
             return jsonify({
                 'error': 'Only admins can set payment status to refunded',
                 'message': 'Please contact an administrator for refunds'
@@ -317,7 +330,7 @@ def mark_as_shipped(order_id):
         data = request.get_json(silent=True) or {}
         tracking_number = data.get('tracking_number')
         
-        order = OrderService.update_order_status(order_id, 'shipped')
+        order = OrderService.update_order_status(order_id, OrderStatus.SHIPPED.value)
         
         # Add tracking number if provided
         if tracking_number:
@@ -354,17 +367,23 @@ def get_all_orders():
         per_page = min(request.args.get('per_page', 20, type=int), 100)
         status = request.args.get('status')
         
+        # Validate status if provided
+        if status and not OrderStatus.is_valid(status):
+            return jsonify({
+                'error': f'Invalid status. Must be one of: {", ".join(OrderStatus.values())}'
+            }), 400
+        
         # Check role for date restrictions
         from app.utils.decorators import is_admin
         if not is_admin():
             # Managers can only see last 30 days
             days = 30
             from app.repositories.order_repository import OrderRepository
-            start_date = datetime.now() - timedelta(days=days)
+            start_date = datetime.now(timezone.utc) - timedelta(days=days)
             
             pagination = OrderRepository.get_by_date_range(
                 start_date=start_date,
-                end_date=datetime.now(),
+                end_date=datetime.now(timezone.utc),
                 page=page,
                 per_page=per_page,
                 status=status
@@ -407,7 +426,7 @@ def add_order_notes(order_id):
         
         # Append to existing notes
         existing_notes = order.admin_notes or ''
-        new_notes = f"{existing_notes}\n[{datetime.now().isoformat()}] {data['notes']}"
+        new_notes = f"{existing_notes}\n[{datetime.now(timezone.utc).isoformat()}] {data['notes']}"
         
         OrderRepository.update(order, admin_notes=new_notes.strip())
         
@@ -438,14 +457,14 @@ def process_refund(order_id):
         reason = data.get('reason', 'Customer request')
         
         # Update order status to refunded
-        order = OrderService.update_order_status(order_id, 'refunded')
+        order = OrderService.update_order_status(order_id, OrderStatus.REFUNDED.value)
         
         # Update payment status
-        OrderService.update_payment_status(order_id, 'refunded')
+        OrderService.update_payment_status(order_id, PaymentStatus.REFUNDED.value)
         
         # Add refund notes
         from app.repositories.order_repository import OrderRepository
-        notes = f"REFUND PROCESSED: {reason}\nDate: {datetime.now().isoformat()}"
+        notes = f"REFUND PROCESSED: {reason}\nDate: {datetime.now(timezone.utc).isoformat()}"
         OrderRepository.update(order, admin_notes=notes)
         
         return jsonify({

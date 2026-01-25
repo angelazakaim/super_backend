@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 from app.extensions import db
+from app.enums import OrderStatus, PaymentStatus, PaymentMethod
+
 
 class Order(db.Model):
     """Order model."""
@@ -10,8 +12,8 @@ class Order(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
     
     # Order status
-    status = db.Column(db.String(20), default='pending', nullable=False)
     # Status options: pending, confirmed, processing, shipped, delivered, cancelled, refunded
+    status = db.Column(db.String(20), default=OrderStatus.PENDING.value, nullable=False)
     
     # Pricing
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)
@@ -29,8 +31,8 @@ class Order(db.Model):
     
     # Payment information
     payment_method = db.Column(db.String(50))
-    payment_status = db.Column(db.String(20), default='pending')
     # Payment status: pending, paid, failed, refunded
+    payment_status = db.Column(db.String(20), default=PaymentStatus.PENDING.value)
     
     # Notes
     customer_notes = db.Column(db.Text)
@@ -51,6 +53,41 @@ class Order(db.Model):
     def total_items(self):
         """Get total number of items in order."""
         return sum(item.quantity for item in self.items)
+    
+    @property
+    def is_pending(self):
+        """Check if order is pending."""
+        return self.status == OrderStatus.PENDING.value
+    
+    @property
+    def is_confirmed(self):
+        """Check if order is confirmed."""
+        return self.status == OrderStatus.CONFIRMED.value
+    
+    @property
+    def is_shipped(self):
+        """Check if order is shipped."""
+        return self.status == OrderStatus.SHIPPED.value
+    
+    @property
+    def is_delivered(self):
+        """Check if order is delivered."""
+        return self.status == OrderStatus.DELIVERED.value
+    
+    @property
+    def is_cancelled(self):
+        """Check if order is cancelled."""
+        return self.status == OrderStatus.CANCELLED.value
+    
+    @property
+    def is_active(self):
+        """Check if order is active (not cancelled or refunded)."""
+        return self.status in OrderStatus.active_statuses()
+    
+    @property
+    def is_paid(self):
+        """Check if payment is completed."""
+        return self.payment_status == PaymentStatus.PAID.value
     
     def to_dict(self, include_items=True, include_customer=False):
         """Convert order to dictionary."""
@@ -93,4 +130,3 @@ class Order(db.Model):
     
     def __repr__(self):
         return f'<Order {self.order_number}>'
-

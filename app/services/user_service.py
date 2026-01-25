@@ -5,6 +5,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.employee_repository import EmployeeRepository
 from app.extensions import db
+from app.enums import UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,10 @@ class UserService:
         result = {'user': user.to_dict()}
         
         if include_profile:
-            if user.role == 'customer':
+            if user.role == UserRole.CUSTOMER.value:
                 customer = CustomerRepository.get_by_user_id(user_id)
                 result['profile'] = customer.to_dict() if customer else None
-            elif user.role in ['manager', 'cashier']:
+            elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
                 employee = EmployeeRepository.get_by_user_id(user_id)
                 # FIXED: Use to_dict() method instead of __dict__
                 result['profile'] = employee.to_dict(include_salary=True) if employee else None
@@ -77,7 +78,7 @@ class UserService:
         email: str,
         username: str,
         password: str,
-        role: str = 'customer',
+        role: str = UserRole.CUSTOMER.value,
         profile_data: Optional[dict] = None
     ) -> dict:
         """
@@ -101,10 +102,9 @@ class UserService:
         logger.info(f"Creating user: {username} ({email}) with role: {role}")
         
         # Validate role
-        valid_roles = ['customer', 'admin', 'manager', 'cashier']
-        if role not in valid_roles:
+        if not UserRole.is_valid(role):
             logger.error(f"Invalid role: {role}")
-            raise ValueError(f"Role must be one of: {', '.join(valid_roles)}")
+            raise ValueError(f"Role must be one of: {', '.join(UserRole.values())}")
         
         # Check if email exists
         if UserRepository.exists_by_email(email):
@@ -139,13 +139,13 @@ class UserService:
             
             # ✅ Create profile WITHOUT committing
             profile = None
-            if role == 'customer':
+            if role == UserRole.CUSTOMER.value:
                 profile = CustomerRepository.create_without_commit(
                     user_id=user.id,
                     **(profile_data or {})
                 )
                 logger.info(f"Customer profile created (not committed) for user {user.id}")
-            elif role in ['manager', 'cashier']:
+            elif role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
                 profile = EmployeeRepository.create_without_commit(
                     user_id=user.id,
                     **(profile_data or {})
@@ -207,10 +207,9 @@ class UserService:
         
         # Validate role if being updated
         if 'role' in kwargs:
-            valid_roles = ['customer', 'admin', 'manager', 'cashier']
-            if kwargs['role'] not in valid_roles:
+            if not UserRole.is_valid(kwargs['role']):
                 logger.error(f"Invalid role: {kwargs['role']}")
-                raise ValueError(f"Role must be one of: {', '.join(valid_roles)}")
+                raise ValueError(f"Role must be one of: {', '.join(UserRole.values())}")
         
         try:
             updated_user = UserRepository.update(user, **kwargs)
@@ -224,7 +223,7 @@ class UserService:
     @staticmethod
     def update_profile(user_id: int, **kwargs) -> Any:
         """
-        Update user profile (customer or employee).
+        Update user's profile (customer or employee).
         
         Args:
             user_id: User ID
@@ -234,7 +233,7 @@ class UserService:
             Updated profile
             
         Raises:
-            ValueError: If validation fails
+            ValueError: If profile not found
         """
         logger.info(f"Updating profile for user: {user_id}")
         
@@ -244,7 +243,7 @@ class UserService:
             raise ValueError("User not found")
         
         try:
-            if user.role == 'customer':
+            if user.role == UserRole.CUSTOMER.value:
                 customer = CustomerRepository.get_by_user_id(user_id)
                 if not customer:
                     logger.error(f"Customer profile not found for user: {user_id}")
@@ -254,7 +253,7 @@ class UserService:
                 logger.info(f"Successfully updated customer profile for user: {user_id}")
                 return updated_profile
                 
-            elif user.role in ['manager', 'cashier']:
+            elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
                 employee = EmployeeRepository.get_by_user_id(user_id)
                 if not employee:
                     logger.error(f"Employee profile not found for user: {user_id}")
@@ -384,6 +383,10 @@ class UserService:
             Paginated user results
         """
         logger.info(f"Fetching all users (role={role}, active_only={active_only})")
+        
+        # Validate role if provided
+        if role and not UserRole.is_valid(role):
+            raise ValueError(f"Invalid role. Must be one of: {', '.join(UserRole.values())}")
         
         try:
             results = UserRepository.get_all(

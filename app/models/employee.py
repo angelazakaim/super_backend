@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 from app.extensions import db
+from app.enums import UserRole
+
 
 class Employee(db.Model):
     """Employee profile extending User model."""
@@ -37,12 +39,12 @@ class Employee(db.Model):
     @property
     def is_manager(self):
         """Check if employee is a manager."""
-        return self.user.role == 'manager'
+        return self.user.role == UserRole.MANAGER.value
 
     @property
     def is_cashier(self):
         """Check if employee is a cashier."""
-        return self.user.role == 'cashier'
+        return self.user.role == UserRole.CASHIER.value
     
     @property
     def full_name(self):

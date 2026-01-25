@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
+from app.enums import UserRole
+
 
 class User(db.Model):
     """User model for authentication and authorization."""
@@ -11,7 +13,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     # Roles: 'admin', 'customer', 'manager', 'cashier'
-    role = db.Column(db.String(20), default='customer', nullable=False)  
+    role = db.Column(db.String(20), default=UserRole.CUSTOMER.value, nullable=False)  
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
@@ -38,9 +40,30 @@ class User(db.Model):
     customer = db.relationship('Customer', backref='user', uselist=False, cascade='all, delete-orphan')
     employee = db.relationship('Employee', backref='user', uselist=False, cascade='all, delete-orphan')
    
-   
-   
-   
+    @property
+    def is_admin(self):
+        """Check if user is admin."""
+        return self.role == UserRole.ADMIN.value
+    
+    @property
+    def is_customer(self):
+        """Check if user is customer."""
+        return self.role == UserRole.CUSTOMER.value
+    
+    @property
+    def is_manager(self):
+        """Check if user is manager."""
+        return self.role == UserRole.MANAGER.value
+    
+    @property
+    def is_cashier(self):
+        """Check if user is cashier."""
+        return self.role == UserRole.CASHIER.value
+    
+    @property
+    def is_staff(self):
+        """Check if user is staff (cashier, manager, or admin)."""
+        return self.role in UserRole.staff_roles()
       
     def set_password(self, password):
         """Hash and set password."""

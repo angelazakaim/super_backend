@@ -1,6 +1,7 @@
 """Marshmallow schemas for API input validation."""
 from marshmallow import Schema, fields, validate, validates, validates_schema, ValidationError
 from decimal import Decimal
+from app.enums import UserRole, OrderStatus, PaymentStatus, PaymentMethod
 
 
 # ============================================================================
@@ -28,10 +29,10 @@ class RegisterSchema(Schema):
         validate=validate.Length(min=8, max=128, error='Password must be between 8 and 128 characters')
     )
     role = fields.Str(
-        missing='customer',
+        missing=UserRole.CUSTOMER.value,
         validate=validate.OneOf(
-            ['customer', 'admin', 'manager', 'cashier'],
-            error='Invalid role'
+            UserRole.values(),
+            error=f'Invalid role. Must be one of: {", ".join(UserRole.values())}'
         )
     )
     first_name = fields.Str(validate=validate.Length(max=50))
@@ -291,8 +292,8 @@ class CreateOrderSchema(Schema):
     )
     payment_method = fields.Str(
         validate=validate.OneOf(
-            ['credit_card', 'debit_card', 'paypal', 'cash', 'bank_transfer'],
-            error='Invalid payment method'
+            PaymentMethod.values(),
+            error=f'Invalid payment method. Must be one of: {", ".join(PaymentMethod.values())}'
         )
     )
     customer_notes = fields.Str(validate=validate.Length(max=1000))
@@ -303,8 +304,8 @@ class UpdateOrderStatusSchema(Schema):
     status = fields.Str(
         required=True,
         validate=validate.OneOf(
-            ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
-            error='Invalid order status'
+            OrderStatus.values(),
+            error=f'Invalid order status. Must be one of: {", ".join(OrderStatus.values())}'
         ),
         error_messages={'required': 'Status is required'}
     )
@@ -315,8 +316,8 @@ class UpdatePaymentStatusSchema(Schema):
     payment_status = fields.Str(
         required=True,
         validate=validate.OneOf(
-            ['pending', 'paid', 'failed', 'refunded'],
-            error='Invalid payment status'
+            PaymentStatus.values(),
+            error=f'Invalid payment status. Must be one of: {", ".join(PaymentStatus.values())}'
         ),
         error_messages={'required': 'Payment status is required'}
     )

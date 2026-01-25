@@ -1,5 +1,7 @@
 from app.extensions import db
 from app.models.user import User
+from app.enums import UserRole
+
 
 class UserRepository:
     """Repository for User model operations."""
@@ -20,7 +22,7 @@ class UserRepository:
         return User.query.filter_by(username=username).first()
     
     @staticmethod
-    def create(email, username, password, role='customer'):
+    def create(email, username, password, role=UserRole.CUSTOMER.value):
         """Create a new user and commit immediately."""
         user = User(email=email, username=username, role=role)
         user.set_password(password)
@@ -29,7 +31,7 @@ class UserRepository:
         return user
     
     @staticmethod
-    def create_without_commit(email, username, password, role='customer'):
+    def create_without_commit(email, username, password, role=UserRole.CUSTOMER.value):
         """
         Create a new user WITHOUT committing (for transactional operations).
         Use this when you need to create User + Profile atomically.

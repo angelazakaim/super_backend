@@ -2,13 +2,14 @@
 import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.repositories.user_repository import UserRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.employee_repository import EmployeeRepository
 from app.utils.decorators import admin_only, manager_required
 from app.extensions import db
+from app.enums import UserRole
 
 logger = logging.getLogger(__name__)
 user_bp = Blueprint('users', __name__, url_prefix='/api/users')
@@ -34,10 +35,10 @@ def get_own_profile():
         
         # Get role-specific profile
         profile = None
-        if user.role == 'customer':
+        if user.role == UserRole.CUSTOMER.value:
             customer = CustomerRepository.get_by_user_id(user_id)
             profile = customer.to_dict() if customer else None
-        elif user.role in ['manager', 'cashier']:
+        elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             employee = EmployeeRepository.get_by_user_id(user_id)
             profile = employee.to_dict(include_salary=True) if employee else None
         
@@ -70,7 +71,7 @@ def update_own_profile():
             return jsonify({'error': 'Invalid JSON'}), 400
         
         # Update role-specific profile
-        if user.role == 'customer':
+        if user.role == UserRole.CUSTOMER.value:
             customer = CustomerRepository.get_by_user_id(user_id)
             if customer:
                 # Only allow updating certain fields
@@ -80,7 +81,7 @@ def update_own_profile():
                 update_data = {k: v for k, v in data.items() if k in allowed_fields}
                 CustomerRepository.update(customer, **update_data)
                 
-        elif user.role in ['manager', 'cashier']:
+        elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             employee = EmployeeRepository.get_by_user_id(user_id)
             if employee:
                 # Employees can only update basic info
@@ -174,6 +175,12 @@ def get_all_users():
         role = request.args.get('role')
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
+        # Validate role if provided
+        if role and not UserRole.is_valid(role):
+            return jsonify({
+                'error': f'Invalid role. Must be one of: {", ".join(UserRole.values())}'
+            }), 400
+        
         # Get users
         pagination = UserRepository.get_all(
             page=page,
@@ -219,12 +226,11 @@ def get_user(user_id):
         
         # Get role-specific profile
         profile = None
-        if user.role == 'customer':
+        if user.role == UserRole.CUSTOMER.value:
             customer = CustomerRepository.get_by_user_id(user_id)
             profile = customer.to_dict() if customer else None
-        elif user.role in ['manager', 'cashier']:
+        elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             employee = EmployeeRepository.get_by_user_id(user_id)
-            # Admin can see salary
             profile = employee.to_dict(include_salary=True) if employee else None
         
         return jsonify({
@@ -237,87 +243,13 @@ def get_user(user_id):
         return jsonify({'error': 'Failed to fetch user'}), 500
 
 
-@user_bp.route('', methods=['POST'])
-@jwt_required()
-@admin_only
-def create_user():
-    """
-    Create a new user (admin, manager, or cashier).
-    ADMIN ONLY - Create staff accounts.
-    """
-    try:
-        data = request.get_json(silent=True)
-        
-        if not data:
-            return jsonify({'error': 'Invalid JSON'}), 400
-        
-        # Validate required fields
-        required_fields = ['email', 'username', 'password', 'role']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Validate role
-        valid_roles = ['customer', 'admin', 'manager', 'cashier']
-        if data['role'] not in valid_roles:
-            return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
-        
-        # Check if email/username exists
-        if UserRepository.exists_by_email(data['email']):
-            return jsonify({'error': 'Email already registered'}), 400
-        
-        if UserRepository.exists_by_username(data['username']):
-            return jsonify({'error': 'Username already taken'}), 400
-        
-        # Prepare profile data
-        profile_data = {}
-        if data['role'] == 'customer':
-            profile_data = {
-                'first_name': data.get('first_name'),
-                'last_name': data.get('last_name'),
-                'phone': data.get('phone')
-            }
-        elif data['role'] in ['manager', 'cashier']:
-            profile_data = {
-                'employee_id': data.get('employee_id'),
-                'hire_date': data.get('hire_date'),
-                'salary': data.get('salary'),
-                'shift_start': data.get('shift_start'),
-                'shift_end': data.get('shift_end')
-            }
-        
-        # Use AuthService to create user atomically
-        from app.services.auth_service import AuthService
-        user, profile = AuthService.register(
-            email=data['email'],
-            username=data['username'],
-            password=data['password'],
-            role=data['role'],
-            profile_data=profile_data
-        )
-        
-        logger.info(f"Admin created user: {user.email} (role: {user.role})")
-        
-        return jsonify({
-            'message': 'User created successfully',
-            'user': user.to_dict(),
-            'profile': profile.to_dict() if profile else None
-        }), 201
-    
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        logger.error(f"Error creating user: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to create user: {str(e)}'}), 500
-
-
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 @admin_only
 def update_user(user_id):
     """
     Update user information.
-    ADMIN ONLY - Update any user.
+    ADMIN ONLY - Update any user's basic info.
     """
     try:
         user = UserRepository.get_by_id(user_id)
@@ -329,46 +261,20 @@ def update_user(user_id):
         if not data:
             return jsonify({'error': 'Invalid JSON'}), 400
         
-        # Update user fields (email, username, is_active)
-        user_update = {}
-        if 'email' in data:
-            # Check if new email is already taken
-            if data['email'] != user.email and UserRepository.exists_by_email(data['email']):
+        # Update allowed fields
+        allowed_fields = ['email', 'username', 'is_active']
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        
+        # Check for duplicate email/username if being changed
+        if 'email' in update_data and update_data['email'] != user.email:
+            if UserRepository.exists_by_email(update_data['email']):
                 return jsonify({'error': 'Email already in use'}), 400
-            user_update['email'] = data['email']
         
-        if 'username' in data:
-            # Check if new username is already taken
-            if data['username'] != user.username and UserRepository.exists_by_username(data['username']):
-                return jsonify({'error': 'Username already in use'}), 400
-            user_update['username'] = data['username']
+        if 'username' in update_data and update_data['username'] != user.username:
+            if UserRepository.exists_by_username(update_data['username']):
+                return jsonify({'error': 'Username already taken'}), 400
         
-        if 'is_active' in data:
-            user_update['is_active'] = data['is_active']
-        
-        if user_update:
-            UserRepository.update(user, **user_update)
-        
-        # Update profile data
-        if user.role == 'customer':
-            customer = CustomerRepository.get_by_user_id(user_id)
-            if customer:
-                profile_update = {k: v for k, v in data.items() 
-                                if k in ['first_name', 'last_name', 'phone',
-                                        'address_line1', 'address_line2', 'city',
-                                        'state', 'postal_code', 'country']}
-                if profile_update:
-                    CustomerRepository.update(customer, **profile_update)
-        
-        elif user.role in ['manager', 'cashier']:
-            employee = EmployeeRepository.get_by_user_id(user_id)
-            if employee:
-                profile_update = {k: v for k, v in data.items()
-                                if k in ['employee_id', 'salary', 'shift_start', 'shift_end']}
-                if profile_update:
-                    EmployeeRepository.update(employee, **profile_update)
-        
-        logger.info(f"Admin updated user: {user.email} (ID: {user_id})")
+        UserRepository.update(user, **update_data)
         
         return jsonify({
             'message': 'User updated successfully',
@@ -403,16 +309,17 @@ def change_user_role(user_id):
         old_role = user.role
         
         # Validate role
-        valid_roles = ['customer', 'admin', 'manager', 'cashier']
-        if new_role not in valid_roles:
-            return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
+        if not UserRole.is_valid(new_role):
+            return jsonify({
+                'error': f'Invalid role. Must be one of: {", ".join(UserRole.values())}'
+            }), 400
         
         if old_role == new_role:
             return jsonify({'error': 'User already has this role'}), 400
         
         # Handle role transition
         # If changing from customer to staff, need to create employee profile
-        if old_role == 'customer' and new_role in ['manager', 'cashier']:
+        if old_role == UserRole.CUSTOMER.value and new_role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
             # Delete customer profile
             customer = CustomerRepository.get_by_user_id(user_id)
             if customer:
@@ -421,13 +328,13 @@ def change_user_role(user_id):
             # Create employee profile
             employee_data = {
                 'employee_id': data.get('employee_id', f'EMP-{user_id}'),
-                'hire_date': data.get('hire_date', datetime.utcnow()),
+                'hire_date': data.get('hire_date', datetime.now(timezone.utc)),
                 'salary': data.get('salary', 0.0)
             }
             EmployeeRepository.create(user_id, **employee_data)
         
         # If changing from staff to customer, need to create customer profile
-        elif old_role in ['manager', 'cashier'] and new_role == 'customer':
+        elif old_role in [UserRole.MANAGER.value, UserRole.CASHIER.value] and new_role == UserRole.CUSTOMER.value:
             # Delete employee profile
             employee = EmployeeRepository.get_by_user_id(user_id)
             if employee:
@@ -587,7 +494,7 @@ def get_user_stats():
         
         # Recent registrations (last 7 days)
         from datetime import timedelta
-        week_ago = datetime.utcnow() - timedelta(days=7)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         recent_registrations = User.query.filter(
             User.created_at >= week_ago
         ).count()
