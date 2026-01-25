@@ -1,11 +1,11 @@
-"""Cart routes with Marshmallow validation and comprehensive error handling."""
+"""Cart routes with Marshmallow validation - FIXED VERSION."""
 import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 from app.services.cart_service import CartService
-from app.repositories.customer_repository import CustomerRepository
+from app.services.user_service import UserService
 from app.schemas import AddToCartSchema, UpdateCartItemSchema, validate_with_errors
 
 logger = logging.getLogger(__name__)
@@ -13,18 +13,19 @@ cart_bp = Blueprint('cart', __name__, url_prefix='/api/cart')
 
 
 def get_customer_id_from_user():
-    """Helper to get customer ID from current user."""
+    """
+    Helper to get customer ID from current user.
+    
+    """
     try:
-        user_id = get_jwt_identity()
-        customer = CustomerRepository.get_by_user_id(user_id)
+        user_id = int(get_jwt_identity())
         
-        if not customer:
-            logger.error(f"Customer profile not found for user: {user_id}")
-            raise ValueError("Customer profile not found")
         
-        return customer.id
-    except Exception as e:
-        logger.error(f"Failed to get customer ID: {e}", exc_info=True)
+        customer_id = UserService.get_customer_id(user_id)
+        
+        return customer_id
+    except ValueError as e:
+        logger.error(f"Failed to get customer ID: {e}")
         raise
 
 

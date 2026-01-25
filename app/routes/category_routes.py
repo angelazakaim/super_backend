@@ -1,7 +1,7 @@
-"""Category routes with proper 4-role permissions."""
+"""Category routes with proper 4-role permissions - FIXED VERSION."""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from app.repositories.category_repository import CategoryRepository
+from app.services.category_service import CategoryService
 from app.utils.decorators import admin_only, manager_required
 import logging
 
@@ -21,7 +21,9 @@ def get_categories():
     """
     try:
         parent_only = request.args.get('parent_only', 'false').lower() == 'true'
-        categories = CategoryRepository.get_all(parent_only=parent_only)
+        
+        
+        categories = CategoryService.get_all_categories(parent_only=parent_only)
         
         return jsonify({
             'categories': [cat.to_dict(include_children=True, include_products=True) for cat in categories]
@@ -39,12 +41,12 @@ def get_category(category_id):
     PUBLIC - No authentication required.
     """
     try:
-        category = CategoryRepository.get_by_id(category_id)
-        if not category:
-            return jsonify({'error': 'Category not found'}), 404
         
+        category = CategoryService.get_category(category_id)
         return jsonify(category.to_dict(include_children=True, include_products=True)), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         logger.error(f"Error fetching category {category_id}: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch category'}), 500
@@ -57,12 +59,12 @@ def get_category_by_slug(slug):
     PUBLIC - No authentication required.
     """
     try:
-        category = CategoryRepository.get_by_slug(slug)
-        if not category:
-            return jsonify({'error': 'Category not found'}), 404
         
+        category = CategoryService.get_category_by_slug(slug)
         return jsonify(category.to_dict(include_children=True, include_products=True)), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         logger.error(f"Error fetching category by slug {slug}: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch category'}), 500
@@ -81,10 +83,6 @@ def update_category(category_id):
     MANAGER OR ADMIN - Managers can edit existing categories.
     """
     try:
-        category = CategoryRepository.get_by_id(category_id)
-        if not category:
-            return jsonify({'error': 'Category not found'}), 404
-        
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "Invalid JSON"}), 400
@@ -97,13 +95,17 @@ def update_category(category_id):
             data = {k: v for k, v in data.items() if k in allowed_fields}
         
         logger.info(f"Updating category {category_id} with data: {data}")
-        category = CategoryRepository.update(category, **data)
+        
+        
+        category = CategoryService.update_category(category_id, **data)
         
         return jsonify({
             'message': 'Category updated successfully',
             'category': category.to_dict()
         }), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Error updating category {category_id}: {e}", exc_info=True)
         return jsonify({'error': f'Failed to update category: {str(e)}'}), 500
@@ -118,11 +120,6 @@ def create_subcategory(parent_id):
     MANAGER OR ADMIN - Managers can create subcategories.
     """
     try:
-        # Verify parent exists
-        parent = CategoryRepository.get_by_id(parent_id)
-        if not parent:
-            return jsonify({'error': 'Parent category not found'}), 404
-        
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "Invalid JSON"}), 400
@@ -135,13 +132,17 @@ def create_subcategory(parent_id):
         data['parent_id'] = parent_id
         
         logger.info(f"Creating subcategory under {parent_id} with data: {data}")
-        category = CategoryRepository.create(**data)
+        
+        
+        category = CategoryService.create_category(**data)
         
         return jsonify({
             'message': 'Subcategory created successfully',
             'category': category.to_dict()
         }), 201
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Error creating subcategory: {e}", exc_info=True)
         return jsonify({'error': f'Failed to create subcategory: {str(e)}'}), 500
@@ -172,9 +173,8 @@ def create_category():
             logger.warning("Missing required field: name")
             return jsonify({'error': 'name is required'}), 400
         
-        # Create category
-        logger.info(f"Creating category with data: {data}")
-        category = CategoryRepository.create(**data)
+        
+        category = CategoryService.create_category(**data)
         logger.info(f"Category created successfully: {category.name} (ID: {category.id})")
         
         return jsonify({
@@ -182,6 +182,8 @@ def create_category():
             'category': category.to_dict()
         }), 201
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Error creating category: {e}", exc_info=True)
         return jsonify({'error': f'Failed to create category: {str(e)}'}), 500
@@ -197,34 +199,20 @@ def delete_category(category_id):
     Warning: This may affect products in this category!
     """
     try:
-        category = CategoryRepository.get_by_id(category_id)
-        if not category:
-            return jsonify({'error': 'Category not found'}), 404
+        logger.info(f"Deleting category {category_id}")
         
-        # Check if category has products
-        if category.products.count() > 0:
-            return jsonify({
-                'error': 'Cannot delete category with products',
-                'message': f'This category has {category.products.count()} products. Please move or delete them first.',
-                'products_count': category.products.count()
-            }), 400
         
-        # Check if category has children
-        if category.children:
-            return jsonify({
-                'error': 'Cannot delete category with subcategories',
-                'message': f'This category has {len(category.children)} subcategories. Please delete them first.',
-                'subcategories_count': len(category.children)
-            }), 400
-        
-        logger.info(f"Deleting category {category_id}: {category.name}")
-        CategoryRepository.delete(category)
+        # Service checks for products and children automatically
+        CategoryService.delete_category(category_id)
         
         return jsonify({
             'message': 'Category deleted successfully',
             'warning': 'This action cannot be undone'
         }), 200
     
+    except ValueError as e:
+        # Service returns detailed error message
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Error deleting category {category_id}: {e}", exc_info=True)
         return jsonify({'error': f'Failed to delete category: {str(e)}'}), 500
@@ -253,9 +241,12 @@ def reorder_categories():
             if not category_id:
                 continue
             
-            category = CategoryRepository.get_by_id(category_id)
-            if category:
-                CategoryRepository.update(category, parent_id=parent_id)
+            
+            try:
+                CategoryService.update_category(category_id, parent_id=parent_id)
+            except ValueError as e:
+                logger.warning(f"Failed to reorder category {category_id}: {e}")
+                continue
         
         return jsonify({'message': 'Categories reordered successfully'}), 200
     

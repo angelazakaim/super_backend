@@ -1,6 +1,8 @@
+"""Authentication routes - FIXED VERSION."""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.auth_service import AuthService
+from app.services.user_service import UserService
 from app.enums import UserRole
 import logging
 
@@ -45,7 +47,6 @@ def register():
                 'country': data.get('country')
             }
         elif role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
-            # Employees now have same contact fields as customers!
             profile_data = {
                 'first_name': data.get('first_name'),
                 'last_name': data.get('last_name'),
@@ -83,7 +84,6 @@ def register():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Registration failed: {e}", exc_info=True)
-        # Return the actual error message for debugging
         return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 
@@ -116,7 +116,7 @@ def refresh():
     """Refresh access token."""
     try:
         user_id = get_jwt_identity()
-        result = AuthService.refresh_token(int(user_id))  # Convert to int
+        result = AuthService.refresh_token(int(user_id))
         return jsonify(result), 200
     except Exception as e:
         logger.error(f"Token refresh failed: {e}", exc_info=True)
@@ -135,7 +135,7 @@ def change_password():
             return jsonify({'error': 'Old and new passwords are required'}), 400
         
         AuthService.change_password(
-            user_id=int(user_id),  # Convert to int
+            user_id=int(user_id),
             old_password=data['old_password'],
             new_password=data['new_password']
         )
@@ -152,32 +152,16 @@ def change_password():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
-    """Get current user information."""
+    """  Get current user information. """
     try:
-        from app.repositories.user_repository import UserRepository
-        from app.repositories.customer_repository import CustomerRepository
-        from app.repositories.employee_repository import EmployeeRepository
+        user_id = int(get_jwt_identity())
         
-        user_id = int(get_jwt_identity())  # Convert to int
-        user = UserRepository.get_by_id(user_id)
+        result = UserService.get_user(user_id, include_profile=True)
         
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        # Get appropriate profile based on role
-        profile = None
-        if user.role == UserRole.CUSTOMER.value:
-            customer = CustomerRepository.get_by_user_id(user_id)
-            profile = customer.to_dict() if customer else None
-        elif user.role in [UserRole.MANAGER.value, UserRole.CASHIER.value]:
-            employee = EmployeeRepository.get_by_user_id(user_id)
-            profile = employee.to_dict(include_salary=True) if employee else None
-        
-        return jsonify({
-            'user': user.to_dict(),
-            'profile': profile
-        }), 200
+        return jsonify(result), 200
     
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         logger.error(f"Failed to fetch user: {e}", exc_info=True)
         return jsonify({'error': f'Failed to fetch user: {str(e)}'}), 500

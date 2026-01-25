@@ -1,8 +1,8 @@
 """Order routes with proper 4-role permissions."""
+from app.services.user_service import UserService
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.order_service import OrderService
-from app.repositories.customer_repository import CustomerRepository
 from app.utils.decorators import admin_only, manager_required, staff_required
 from app.enums import OrderStatus, PaymentStatus, UserRole
 from datetime import datetime, timezone, timedelta
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 def get_customer_id_from_user():
     """Helper to get customer ID from current user."""
     user_id = get_jwt_identity()
-    customer = CustomerRepository.get_by_user_id(user_id)
-    if not customer:
+    customer_id = UserService.get_customer_id(int(user_id))
+    if not customer_id:
         raise ValueError("Customer profile not found")
-    return customer.id
+    return customer_id
 
 
 # ============================================================================
