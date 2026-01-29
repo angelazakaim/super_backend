@@ -150,6 +150,9 @@ class ProductCreateSchema(Schema):
             validate.Regexp(r'^[A-Z0-9-_]+$', error='SKU can only contain uppercase letters, numbers, hyphens, and underscores')
         )
     )
+    
+    barcode = fields.Str(validate=validate.Length(max=100), allow_none=True)
+    
     stock_quantity = fields.Int(
         missing=0,
         validate=validate.Range(min=0, error='Stock quantity cannot be negative')
@@ -164,8 +167,11 @@ class ProductCreateSchema(Schema):
         validate=validate.Range(min=0)
     )
     dimensions = fields.Str(validate=validate.Length(max=100))
-    image_url = fields.Url(validate=validate.Length(max=500))
-    images = fields.List(fields.Url())
+ 
+    image_url = fields.Url(validate=validate.Length(max=500), allow_none=True)
+    
+ 
+    
     is_active = fields.Bool(missing=True)
     is_featured = fields.Bool(missing=False)
     
@@ -205,8 +211,16 @@ class ProductUpdateSchema(Schema):
     category_id = fields.Int()
     weight = fields.Decimal(places=2, allow_none=True, validate=validate.Range(min=0))
     dimensions = fields.Str(validate=validate.Length(max=100))
-    image_url = fields.Url(validate=validate.Length(max=500))
-    images = fields.List(fields.Url())
+
+   
+    image_url = fields.Url(
+        validate=validate.Length(max=500), 
+        allow_none=True, 
+        load_default=None
+    )
+    
+    images = fields.List(fields.Url(), allow_none=True, load_default=[])
+
     is_active = fields.Bool()
     is_featured = fields.Bool()
     
