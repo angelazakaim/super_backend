@@ -7,6 +7,15 @@ from app.utils.logger import setup_logger
 from app.utils.middleware import setup_middleware
 
 def create_app(config_name=None):
+    
+    # ... setup app and config
+    
+    # REMOVE the manual CORS(app, ...) block entirely.
+    
+    # Use only the extension initialization which pulls from your config.py
+
+    # ... rest of the function
+    
     """Application factory pattern."""
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
@@ -14,20 +23,21 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
     
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": [
-            "http://localhost:5500",
-            "http://127.0.0.1:5500"
-        ]}},
-        supports_credentials=True
-    )
+    cors.init_app(app, resources={
+        r"/api/*": {
+            "origins": app.config['CORS_ORIGINS'],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    }, supports_credentials=True)
+
+    # cors.init_app(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}}, supports_credentials=True)
     
     
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, origins=app.config['CORS_ORIGINS'])
+   
     jwt.init_app(app)
     
     # Setup logging and middleware
