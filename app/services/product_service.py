@@ -51,7 +51,6 @@ class ProductService:
         logger.info(f"Product found by SKU '{sku}': {product.name}")
         return product
     
-    # ✅ NEW METHOD #2
     @staticmethod
     def get_product_by_barcode(barcode):
         """
