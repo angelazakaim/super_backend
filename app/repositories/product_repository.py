@@ -1,5 +1,7 @@
+"""Product Repository - Final Clean Version"""
 from app.extensions import db
 from app.models.product import Product
+
 
 class ProductRepository:
     """Repository for Product model operations."""
@@ -10,25 +12,15 @@ class ProductRepository:
         return Product.query.get(product_id)
     
     @staticmethod
-    def get_by_slug(slug):
-        """Get product by slug."""
-        return Product.query.filter_by(slug=slug, is_active=True).first()
-    
-    @staticmethod
-    def get_by_sku(sku):
-        """Get product by SKU."""
-        return Product.query.filter_by(sku=sku).first()
-    
-    @staticmethod
     def exists_by_sku(sku):
-        """Check if SKU already exists."""
+        """Check if SKU already exists (used for validation)."""
         return db.session.query(
             db.exists().where(Product.sku == sku)
         ).scalar()
     
     @staticmethod
     def exists_by_barcode(barcode):
-        """Check if barcode already exists."""
+        """Check if barcode already exists (used for validation)."""
         if not barcode:
             return False
         return db.session.query(
@@ -59,9 +51,10 @@ class ProductRepository:
         db.session.commit()
     
     @staticmethod
-    def get_all(page=1, per_page=20, active_only=True, category_id=None, featured=False, search=None):
+    def get_all(page=1, per_page=20, active_only=True, category_id=None, 
+                featured=False, search_type=None, search_value=None):
         """
-        Get all products with filters and pagination.
+        Get all products with unified search support.
         
         Args:
             page: Page number
@@ -69,44 +62,45 @@ class ProductRepository:
             active_only: Only active products
             category_id: Filter by category
             featured: Only featured products
-            search: Search term for name/description
+            search_type: Field to search ('id', 'sku', 'slug', 'barcode', 'category_id', 'name')
+            search_value: Value to search for
+            
+        Returns:
+            Paginated query result
         """
         query = Product.query
         
         if active_only:
             query = query.filter_by(is_active=True)
         
-        if category_id:
+        # Unified search - handles all search types
+        if search_type and search_value:
+            if search_type == 'id':
+                query = query.filter_by(id=int(search_value))
+            elif search_type == 'sku':
+                query = query.filter_by(sku=search_value)
+            elif search_type == 'slug':
+                query = query.filter_by(slug=search_value)
+            elif search_type == 'barcode':
+                query = query.filter_by(barcode=search_value)
+            elif search_type == 'category_id':
+                query = query.filter_by(category_id=int(search_value))
+            elif search_type == 'name':
+                # Search in name and description
+                search_term = f'%{search_value}%'
+                query = query.filter(
+                    db.or_(
+                        Product.name.ilike(search_term),
+                        Product.description.ilike(search_term)
+                    )
+                )
+        # Standalone category filter (when not using search)
+        elif category_id:
             query = query.filter_by(category_id=category_id)
         
         if featured:
             query = query.filter_by(is_featured=True)
         
-        if search:
-            search_term = f'%{search}%'
-            query = query.filter(
-                db.or_(
-                    Product.name.ilike(search_term),
-                    Product.description.ilike(search_term)
-                )
-            )
-        
-        return query.order_by(Product.created_at.desc()).paginate(
-            page=page, 
-            per_page=per_page, 
-            error_out=False
-        )
-    
-    @staticmethod
-    def search(search_term, page=1, per_page=20):
-        """Search products by name or description."""
-        query = Product.query.filter(
-            db.or_(
-                Product.name.ilike(f'%{search_term}%'),
-                Product.description.ilike(f'%{search_term}%')
-            ),
-            Product.is_active == True
-        )
         return query.order_by(Product.created_at.desc()).paginate(
             page=page, 
             per_page=per_page, 
@@ -128,16 +122,3 @@ class ProductRepository:
             Product.is_active == True,
             Product.stock_quantity <= threshold
         ).order_by(Product.stock_quantity.asc()).all()
-    
-    @staticmethod
-    def update_stock(product, quantity_change):
-        """
-        Update product stock quantity.
-        
-        Args:
-            product: Product object
-            quantity_change: Amount to add (positive) or subtract (negative)
-        """
-        product.stock_quantity += quantity_change
-        db.session.commit()
-        return product

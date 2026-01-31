@@ -1,7 +1,6 @@
-"""Product service with business logic and validation - COMPLETE VERSION."""
+"""Product Service - Final Clean Version"""
 from app.repositories.product_repository import ProductRepository
 from app.repositories.category_repository import CategoryRepository
-from app.extensions import db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,72 +11,29 @@ class ProductService:
     
     @staticmethod
     def get_product(product_id):
-        """Get product with category details."""
+        """Get product by ID (used internally by update/delete operations)."""
         product = ProductRepository.get_by_id(product_id)
         if not product or not product.is_active:
             raise ValueError("Product not found or inactive")
         return product
     
     @staticmethod
-    def get_product_by_slug(slug):
-        """Get product by slug."""
-        product = ProductRepository.get_by_slug(slug)
-        if not product or not product.is_active:
-            raise ValueError("Product not found or inactive")
-        return product
-    
-    
-    @staticmethod
-    def get_product_by_sku(sku):
-        """
-        Get product by SKU.
-        
-        Args:
-            sku: Product SKU
-            
-        Returns:
-            Product object
-            
-        Raises:
-            ValueError: If product not found
-        """
-        if not sku:
-            raise ValueError("SKU is required")
-        
-        product = ProductRepository.get_by_sku(sku)
-        if not product or not product.is_active:
-            raise ValueError("Product not found")
-        
-        logger.info(f"Product found by SKU '{sku}': {product.name}")
-        return product
-    
-    @staticmethod
-    def get_product_by_barcode(barcode):
-        """
-        Get product by barcode (for cashier scanning).
-        
-        Args:
-            barcode: Product barcode
-            
-        Returns:
-            Product object
-            
-        Raises:
-            ValueError: If product not found
-        """
-        if not barcode:
-            raise ValueError("Barcode is required")
-        
-        product = ProductRepository.get_by_barcode(barcode)
-        if not product or not product.is_active:
-            raise ValueError("Product not found")
-        
-        logger.info(f"Product found by barcode '{barcode}': {product.name}")
-        return product
-    
-    @staticmethod
     def get_all_products(page=1, per_page=20, filters=None):
-        """Get all products with pagination and filters."""
+        """
+        Get all products with pagination and unified search filters.
+        
+        Args:
+            page: Page number
+            per_page: Items per page
+            filters: Dictionary of filter options:
+                - category_id: Filter by category
+                - featured: Only featured products
+                - search_type: Field to search ('id', 'sku', 'slug', 'barcode', 'category_id', 'name')
+                - search_value: Value to search for
+                
+        Returns:
+            Dictionary with products and pagination metadata
+        """
         per_page = min(per_page, 100)
         filters = filters or {}
         
@@ -86,7 +42,8 @@ class ProductService:
             per_page=per_page,
             category_id=filters.get('category_id'),
             featured=filters.get('featured'),
-            search=filters.get('search'),
+            search_type=filters.get('search_type'),
+            search_value=filters.get('search_value'),
             active_only=True
         )
         
@@ -192,19 +149,11 @@ class ProductService:
             logger.error(f"Error deleting product {product_id}: {e}", exc_info=True)
             raise
     
-    # ✅ NEW METHOD #3
     @staticmethod
     def hard_delete_product(product_id):
         """
         Permanently delete product from database (admin only).
-        
         WARNING: This cannot be undone!
-        
-        Args:
-            product_id: Product ID
-            
-        Raises:
-            ValueError: If product not found
         """
         product = ProductRepository.get_by_id(product_id)
         if not product:
@@ -263,16 +212,17 @@ class ProductService:
     
     @staticmethod
     def search_products(query, filters=None):
-        """Search products."""
+        """Search products by name/description - convenience wrapper."""
         filters = filters or {}
-        filters['search'] = query
+        filters['search_type'] = 'name'
+        filters['search_value'] = query
         
         result = ProductService.get_all_products(page=1, per_page=50, filters=filters)
         return result['products']
     
     @staticmethod
     def get_featured_products(limit=10):
-        """Get featured products."""
+        """Get featured products - convenience wrapper."""
         result = ProductService.get_all_products(
             page=1,
             per_page=limit,
@@ -282,7 +232,7 @@ class ProductService:
     
     @staticmethod
     def get_products_by_category(category_id, page=1, per_page=20):
-        """Get products in a specific category."""
+        """Get products in a specific category - convenience wrapper."""
         category = CategoryRepository.get_by_id(category_id)
         if not category:
             raise ValueError("Category not found")
