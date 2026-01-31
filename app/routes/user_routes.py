@@ -90,6 +90,30 @@ def get_all_customers():
         return jsonify({'error': 'Failed to fetch customers'}), 500
 
 
+@user_bp.route('/employees', methods=['GET'])
+@jwt_required()
+@manager_required
+def get_all_employees():
+    """
+    Get all employees (managers + cashiers) with pagination.
+    MANAGER OR ADMIN - Managers can view employee list.
+    """
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 25, type=int)
+        role = request.args.get('role', None, type=str)
+
+        result = UserService.get_all_employees(page=page, per_page=per_page, role_filter=role)
+
+        return jsonify(result), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error fetching employees: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch employees'}), 500
+
+
 # ============================================================================
 # ADMIN-ONLY ENDPOINTS (User Management)
 # ============================================================================

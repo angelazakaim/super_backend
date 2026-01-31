@@ -220,6 +220,55 @@ class UserService:
         }
     
     @staticmethod
+    def get_all_employees(page: int = 1, per_page: int = 20, role_filter: Optional[str] = None) -> Dict:
+        """
+        Get all employees (managers + cashiers) with pagination.
+
+        Args:
+            page: Page number
+            per_page: Items per page
+            role_filter: Optional — 'manager' or 'cashier'
+
+        Returns:
+            Dictionary with employees and pagination info
+
+        Raises:
+            ValueError: If role_filter is not a valid employee role
+        """
+        logger.info(f"Fetching all employees - page: {page}, per_page: {per_page}, role: {role_filter}")
+
+        employee_roles = [UserRole.MANAGER.value, UserRole.CASHIER.value]
+
+        # Validate role_filter if provided
+        if role_filter and role_filter not in employee_roles:
+            raise ValueError(f"Invalid role filter for employees. Must be one of: {', '.join(employee_roles)}")
+
+        per_page = min(per_page, 100)
+
+        # Build query filtered to employee roles only
+        from app.models.user import User as UserModel
+        query = db.session.query(UserModel).filter(UserModel.role.in_(employee_roles))
+
+        if role_filter:
+            query = query.filter(UserModel.role == role_filter)
+
+        pagination = query.order_by(UserModel.created_at.desc()).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+
+        return {
+            'employees': [u.to_dict() for u in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': pagination.page,
+            'per_page': pagination.per_page,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+
+    @staticmethod
     def get_user_by_email(email: str) -> Optional[Any]:
         """Get user by email."""
         logger.info(f"Fetching user by email: {email}")
