@@ -162,16 +162,16 @@ class UserService:
         # Limit per_page to prevent abuse
         per_page = min(per_page, 100)
         
-        # Get paginated users
-        pagination = UserRepository.get_all(page=page, per_page=per_page, active_only=True)
-        
-        # Filter by role if specified
-        users = pagination.items
-        if role_filter:
-            users = [u for u in users if u.role == role_filter]
+        # role_filter is passed into the query so pagination totals are correct
+        pagination = UserRepository.get_all(
+            page=page,
+            per_page=per_page,
+            active_only=True,
+            role_filter=role_filter
+        )
         
         return {
-            'users': [u.to_dict() for u in users],
+            'users': [u.to_dict() for u in pagination.items],
             'total': pagination.total,
             'pages': pagination.pages,
             'current_page': pagination.page,

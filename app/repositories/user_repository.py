@@ -63,14 +63,16 @@ class UserRepository:
         db.session.commit()
     
     @staticmethod
-    def get_all(page=1, per_page=20, active_only=True):
-        """Get all users with pagination."""
+    def get_all(page=1, per_page=20, active_only=True, role_filter=None):
+        """Get all users with pagination, optionally filtered by role."""
         query = User.query
         if active_only:
             query = query.filter_by(is_active=True)
+        if role_filter:
+            query = query.filter_by(role=role_filter)
         return query.order_by(User.created_at.desc()).paginate(
-            page=page, 
-            per_page=per_page, 
+            page=page,
+            per_page=per_page,
             error_out=False
         )
     
