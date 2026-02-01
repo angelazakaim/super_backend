@@ -20,6 +20,10 @@ class Config:
     # Pagination
     DEFAULT_PAGE_SIZE = int(os.getenv('DEFAULT_PAGE_SIZE', 20))
     MAX_PAGE_SIZE = int(os.getenv('MAX_PAGE_SIZE', 100))
+   
+    # File upload – Flask uses this to reject oversized requests before they
+    # hit your route handler.  5 MB is a safe default for product images.
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB
 
 class DevelopmentConfig(Config):
     """Development configuration."""
