@@ -7,7 +7,7 @@ services:
     runtime: python
     plan: free
     repo: https://github.com/angelazakaim/super_backend.git
-    branch: main
+    branch: master
     region: oregon
     
     # Build Command - Install dependencies
@@ -28,57 +28,48 @@ services:
     
     # Environment Variables
     envVars:
-      # Flask Core Configuration
-      - key: FLASK_APP
-        value: run.py
-      
+      # Flask Environment - Triggers ProductionConfig
       - key: FLASK_ENV
         value: production
       
-      # Security Keys (auto-generated)
+      # Flask App Entry Point
+      - key: FLASK_APP
+        value: run.py
+      
+      # Security Keys (auto-generated - overrides config defaults)
       - key: SECRET_KEY
         generateValue: true
       
       - key: JWT_SECRET_KEY
         generateValue: true
       
-      # JWT Token Expiration
+      # JWT Token Expiration (matches your Config defaults)
       - key: JWT_ACCESS_TOKEN_EXPIRES
-        value: "3600"
+        value: "3600"  # 1 hour
       
       - key: JWT_REFRESH_TOKEN_EXPIRES
-        value: "2592000"
+        value: "2592000"  # 30 days
       
-      # Database Connection (auto-populated from database)
+      # Database Connection (auto-populated, converted to postgresql:// by your config)
       - key: DATABASE_URL
         fromDatabase:
           name: ecommerce-postgres-db
           property: connectionString
       
-      # Pagination Configuration
+      # Pagination Configuration (matches your Config defaults)
       - key: DEFAULT_PAGE_SIZE
         value: "20"
       
       - key: MAX_PAGE_SIZE
         value: "100"
       
-      # File Upload Configuration
-      - key: MAX_CONTENT_LENGTH
-        value: "5242880"
-      
       # CORS Configuration - Auto-sync with frontend
+      # Your config splits this by comma automatically
       - key: CORS_ORIGINS
         fromService:
           type: web
           name: go-2-market-frontend
           envVarKey: RENDER_EXTERNAL_URL
-
-    # NOTE: Persistent disk storage requires paid plan ($7/month Starter or higher)
-    # To enable file uploads with persistence, upgrade to Starter plan and uncomment:
-    # disk:
-    #   name: ecommerce-product-uploads
-    #   mountPath: /var/data
-    #   sizeGB: 1
 
   # ===========================================================================
   # GO-2 Market Frontend (React/Vite)
@@ -86,10 +77,8 @@ services:
   - type: web
     name: go-2-market-frontend
     runtime: static
-    plan: free
     repo: https://github.com/angelazakaim/super_frontend.git
-    branch: main
-    # NOTE: Static sites cannot have a region specified
+    branch: master
     
     # Build Command
     buildCommand: npm install && npm run build
