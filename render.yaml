@@ -17,8 +17,6 @@ services:
     
     # Start Command - Run migrations then start app
     startCommand: |
-      mkdir -p /var/data/uploads
-      chmod -R 755 /var/data
       flask db upgrade
       gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile - run:app
     
@@ -46,10 +44,10 @@ services:
       
       # JWT Token Expiration
       - key: JWT_ACCESS_TOKEN_EXPIRES
-        value: "3600"  # 1 hour in seconds
+        value: "3600"
       
       - key: JWT_REFRESH_TOKEN_EXPIRES
-        value: "2592000"  # 30 days in seconds
+        value: "2592000"
       
       # Database Connection (auto-populated from database)
       - key: DATABASE_URL
@@ -66,10 +64,7 @@ services:
       
       # File Upload Configuration
       - key: MAX_CONTENT_LENGTH
-        value: "5242880"  # 5MB in bytes
-      
-      - key: UPLOAD_FOLDER
-        value: /var/data/uploads
+        value: "5242880"
       
       # CORS Configuration - Auto-sync with frontend
       - key: CORS_ORIGINS
@@ -77,12 +72,13 @@ services:
           type: web
           name: go-2-market-frontend
           envVarKey: RENDER_EXTERNAL_URL
-    
-    # Persistent Disk Storage for Uploads
-    disk:
-      name: ecommerce-product-uploads
-      mountPath: /var/data
-      sizeGB: 1  # Free tier: 1GB max
+
+    # NOTE: Persistent disk storage requires paid plan ($7/month Starter or higher)
+    # To enable file uploads with persistence, upgrade to Starter plan and uncomment:
+    # disk:
+    #   name: ecommerce-product-uploads
+    #   mountPath: /var/data
+    #   sizeGB: 1
 
   # ===========================================================================
   # GO-2 Market Frontend (React/Vite)
@@ -93,7 +89,7 @@ services:
     plan: free
     repo: https://github.com/angelazakaim/super_frontend.git
     branch: main
-    region: oregon  # Same region as backend for better performance
+    # NOTE: Static sites cannot have a region specified
     
     # Build Command
     buildCommand: npm install && npm run build
@@ -159,8 +155,8 @@ services:
 # ===========================================================================
 databases:
   - name: ecommerce-postgres-db
-    plan: free  # Free for 90 days, then $7/month
+    plan: free
     databaseName: ecommerce_db
     user: ecommerce_user
-    region: oregon  # Match backend region for lower latency
-    ipAllowList: []  # Empty = allow all Render services
+    region: oregon
+    ipAllowList: []
