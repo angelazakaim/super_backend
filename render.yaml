@@ -34,14 +34,13 @@ services:
           name: frontend-client
           property: host
 
-  # --- Frontend Service ---
-  - type: web
+  # --- Frontend Service (Static Site) ---
+  - type: static
     name: frontend-client
-    runtime: static
     repo: https://github.com/angelazakaim/super_frontend.git
     plan: free
     buildCommand: npm install && npm run build
-    publishPath: ./dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
         fromStack:
