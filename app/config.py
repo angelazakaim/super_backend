@@ -6,11 +6,11 @@ load_dotenv()
 
 class Config:
     """Base configuration."""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'XSXhll9WXqamJ3ADPKyyGxgTqvqY2cd-S9EHs5VzBcsJpduO25L438YlOUi_CqHGbEg')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT Configuration
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'OjrbquxMUAOgZCttzDKmGSBS1lG6FxgTX04mSJQfg_F9qU4Iqw-EWf74-JKtHWiM0J43GP1sA4PBNRExwVV6UA')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600)))
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(seconds=int(os.getenv('JWT_REFRESH_TOKEN_EXPIRES', 2592000)))
     
