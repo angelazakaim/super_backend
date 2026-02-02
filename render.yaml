@@ -1,9 +1,12 @@
 services:
+  # --- Backend Service (Flask) ---
   - type: web
     name: go2market-backend
     runtime: python
+    repo: https://github.com/angelazakaim/super_backend.git
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app 
+    startCommand: gunicorn wsgi:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -12,6 +15,23 @@ services:
       - key: FLASK_ENV
         value: production
 
+  # --- Frontend Service (Static Site) ---
+  - type: web
+    name: frontend-client
+    runtime: static
+    repo: https://github.com/angelazakaim/super_frontend.git
+    plan: free
+    buildCommand: npm install && npm run build
+    publishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromStack:
+          type: web
+          name: backend-service
+          property: host
+
 databases:
-  - name: ecommerce-db
-    plan: free # Use 'standard' for production data persistence
+  - name: my-postgres-db
+    plan: free
+    databaseName: my_app_db
+    user: admin
