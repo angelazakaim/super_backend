@@ -1,0 +1,56 @@
+services:
+  # --- Backend Service (Flask) ---
+  - type: web
+    name: backend-service
+    runtime: python
+    repo: https://github.com/angelazakaim/super_backend.git
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: my-postgres-db
+          property: connectionString
+      - key: FLASK_APP
+        value: run.py
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ACCESS_TOKEN_EXPIRES
+        value: "3600"
+      - key: JWT_REFRESH_TOKEN_EXPIRES
+        value: "2592000"
+      - key: DEFAULT_PAGE_SIZE
+        value: "20"
+      - key: MAX_PAGE_SIZE
+        value: "100"
+      - key: CORS_ORIGINS
+        fromStack:
+          type: web
+          name: frontend-client
+          property: host
+
+  # --- Frontend Service (Static Site) ---
+  - type: web
+    name: frontend-client
+    runtime: static
+    repo: https://github.com/angelazakaim/super_frontend.git
+    plan: free
+    buildCommand: npm install && npm run build
+    publishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromStack:
+          type: web
+          name: backend-service
+          property: host
+
+databases:
+  - name: my-postgres-db
+    plan: free
+    databaseName: my_app_db
+    user: admin
