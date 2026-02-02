@@ -1,0 +1,21 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#f0f0f0"/>
+  
+  <!-- Image icon -->
+  <g transform="translate(100, 80)">
+    <!-- Frame -->
+    <rect x="0" y="0" width="200" height="200" rx="10" fill="#ffffff" stroke="#cccccc" stroke-width="3"/>
+    
+    <!-- Mountain icon -->
+    <path d="M 30 150 L 70 90 L 110 130 L 150 70 L 170 100 L 170 150 Z" fill="#d0d0d0"/>
+    
+    <!-- Sun icon -->
+    <circle cx="150" cy="50" r="15" fill="#ffd700"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="200" y="320" font-family="Arial, sans-serif" font-size="18" fill="#999999" text-anchor="middle">
+    No Image Available
+  </text>
+</svg>

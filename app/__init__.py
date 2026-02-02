@@ -20,7 +20,8 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
     
-    app = Flask(__name__)
+    # serving static files as well
+    app = Flask(__name__, static_folder='static')
     app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
     
     cors.init_app(app, resources={

@@ -1,4 +1,4 @@
-"""Product model with slug as database column - FIXED VERSION."""
+"""Product model with slug as database column and default image handling."""
 from datetime import datetime, timezone
 from app.extensions import db
 import re
@@ -8,9 +8,12 @@ class Product(db.Model):
     """Product model."""
     __tablename__ = 'products'
     
+    # Default placeholder image path
+    DEFAULT_IMAGE = '/static/images/product-placeholder.png'
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False, index=True)
-    #slug is also a database column, not a property
+    # slug is also a database column, not a property
     slug = db.Column(db.String(250), unique=True, nullable=False, index=True)
     description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2), nullable=False)
@@ -92,12 +95,23 @@ class Product(db.Model):
             return round(((self.compare_price - self.price) / self.compare_price) * 100, 2)
         return 0
     
+    def _get_display_image_url(self):
+        """
+        Get the image URL to display, returning default placeholder if none exists.
+        
+        Returns:
+            str: The image URL or default placeholder path
+        """
+        if self.image_url and self.image_url.strip() and self.image_url not in ('null', 'undefined'):
+            return self.image_url
+        return self.DEFAULT_IMAGE
+    
     def to_dict(self, include_category=False):
         """Convert product to dictionary."""
         data = {
             'id': self.id,
             'name': self.name,
-            'slug': self.slug,  # Always available now!
+            'slug': self.slug,
             'description': self.description,
             'price': float(self.price),
             'compare_price': float(self.compare_price) if self.compare_price else None,
@@ -109,7 +123,7 @@ class Product(db.Model):
             'category_id': self.category_id,
             'weight': float(self.weight) if self.weight else None,
             'dimensions': self.dimensions,
-            'image_url': self.image_url,
+            'image_url': self._get_display_image_url(),  # Returns default if None
             'images': self.images or [],
             'is_active': self.is_active,
             'is_featured': self.is_featured,
