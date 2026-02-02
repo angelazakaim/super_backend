@@ -1,151 +1,17 @@
 services:
-  # ===========================================================================
-  # Flask E-commerce Backend API
-  # ===========================================================================
   - type: web
-    name: ecommerce-backend
+    name: go2market-backend
     runtime: python
-    plan: free
-    repo: https://github.com/angelazakaim/super_backend.git
-    branch: master
-    region: oregon
-    
-    # Build Command - Install dependencies
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-    
-    # Start Command - Run migrations then start app
-    startCommand: |
-      flask db upgrade
-      gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile - run:app
-    
-    # Health Check Endpoint
-    healthCheckPath: /api/products
-    
-    # Auto-deploy
-    autoDeploy: true
-    
-    # Environment Variables
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app 
     envVars:
-      # Flask Environment - Triggers ProductionConfig
-      - key: FLASK_ENV
-        value: production
-      
-      # Flask App Entry Point
-      - key: FLASK_APP
-        value: run.py
-      
-      # Security Keys (auto-generated - overrides config defaults)
-      - key: SECRET_KEY
-        generateValue: true
-      
-      - key: JWT_SECRET_KEY
-        generateValue: true
-      
-      # JWT Token Expiration (matches your Config defaults)
-      - key: JWT_ACCESS_TOKEN_EXPIRES
-        value: "3600"  # 1 hour
-      
-      - key: JWT_REFRESH_TOKEN_EXPIRES
-        value: "2592000"  # 30 days
-      
-      # Database Connection (auto-populated, converted to postgresql:// by your config)
       - key: DATABASE_URL
         fromDatabase:
-          name: ecommerce-postgres-db
+          name: ecommerce-db
           property: connectionString
-      
-      # Pagination Configuration (matches your Config defaults)
-      - key: DEFAULT_PAGE_SIZE
-        value: "20"
-      
-      - key: MAX_PAGE_SIZE
-        value: "100"
-      
-      # CORS Configuration - Auto-sync with frontend
-      # Your config splits this by comma automatically
-      - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: go-2-market-frontend
-          envVarKey: RENDER_EXTERNAL_URL
-
-  # ===========================================================================
-  # GO-2 Market Frontend (React/Vite)
-  # ===========================================================================
-  - type: web
-    name: go-2-market-frontend
-    runtime: static
-    repo: https://github.com/angelazakaim/super_frontend.git
-    branch: master
-    
-    # Build Command
-    buildCommand: npm install && npm run build
-    
-    # Static files directory
-    staticPublishPath: ./dist
-    
-    # Auto-deploy
-    autoDeploy: true
-    
-    # Build Filter - Only rebuild when these change
-    buildFilter:
-      paths:
-        - src/**
-        - public/**
-        - index.html
-        - package.json
-        - vite.config.ts
-        - tsconfig.json
-    
-    # Environment Variables
-    envVars:
-      - key: NODE_ENV
+      - key: FLASK_ENV
         value: production
-      
-      # API URL - Auto-inject backend URL
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: ecommerce-backend
-          envVarKey: RENDER_EXTERNAL_URL
-    
-    # Security Headers
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      
-      - path: /*
-        name: Referrer-Policy
-        value: strict-origin-when-cross-origin
-      
-      - path: /*
-        name: Permissions-Policy
-        value: geolocation=(), microphone=(), camera=()
-      
-      - path: /*
-        name: X-XSS-Protection
-        value: 1; mode=block
-    
-    # SPA Routing - All routes serve index.html
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
 
-# ===========================================================================
-# PostgreSQL Database
-# ===========================================================================
 databases:
-  - name: ecommerce-postgres-db
-    plan: free
-    databaseName: ecommerce_db
-    user: ecommerce_user
-    region: oregon
-    ipAllowList: []
+  - name: ecommerce-db
+    plan: free # Use 'standard' for production data persistence
