@@ -34,9 +34,10 @@ services:
           name: frontend-client
           property: host
 
-  # --- Frontend Service (Static Site) ---
-  - type: static_site
+  # --- Frontend Service ---
+  - type: web
     name: frontend-client
+    runtime: static
     repo: https://github.com/angelazakaim/super_frontend.git
     plan: free
     buildCommand: npm install && npm run build
