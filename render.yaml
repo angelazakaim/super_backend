@@ -1,55 +1,166 @@
 services:
-  # --- Backend Service (Flask) ---
+  # ===========================================================================
+  # Flask E-commerce Backend API
+  # ===========================================================================
   - type: web
-    name: backend-service
+    name: ecommerce-backend
     runtime: python
-    repo: https://github.com/angelazakaim/super_backend.git
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    repo: https://github.com/angelazakaim/super_backend.git
+    branch: main
+    region: oregon
+    
+    # Build Command - Install dependencies
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    
+    # Start Command - Run migrations then start app
+    startCommand: |
+      mkdir -p /var/data/uploads
+      chmod -R 755 /var/data
+      flask db upgrade
+      gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile - run:app
+    
+    # Health Check Endpoint
+    healthCheckPath: /api/products
+    
+    # Auto-deploy
+    autoDeploy: true
+    
+    # Environment Variables
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: my-postgres-db
-          property: connectionString
+      # Flask Core Configuration
       - key: FLASK_APP
         value: run.py
+      
       - key: FLASK_ENV
         value: production
+      
+      # Security Keys (auto-generated)
       - key: SECRET_KEY
         generateValue: true
+      
       - key: JWT_SECRET_KEY
         generateValue: true
+      
+      # JWT Token Expiration
       - key: JWT_ACCESS_TOKEN_EXPIRES
-        value: "3600"
+        value: "3600"  # 1 hour in seconds
+      
       - key: JWT_REFRESH_TOKEN_EXPIRES
-        value: "2592000"
+        value: "2592000"  # 30 days in seconds
+      
+      # Database Connection (auto-populated from database)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecommerce-postgres-db
+          property: connectionString
+      
+      # Pagination Configuration
       - key: DEFAULT_PAGE_SIZE
         value: "20"
+      
       - key: MAX_PAGE_SIZE
         value: "100"
+      
+      # File Upload Configuration
+      - key: MAX_CONTENT_LENGTH
+        value: "5242880"  # 5MB in bytes
+      
+      - key: UPLOAD_FOLDER
+        value: /var/data/uploads
+      
+      # CORS Configuration - Auto-sync with frontend
       - key: CORS_ORIGINS
-        fromStack:
-          type: static_site
-          name: frontend-client
-          property: host
-
-  # --- Frontend Service (Static Site) ---
-  - type: static_site
-    name: frontend-client
-    repo: https://github.com/angelazakaim/super_frontend.git
-    plan: free
-    buildCommand: npm install && npm run build
-    publishPath: ./dist
-    envVars:
-      - key: VITE_API_URL
-        fromStack:
+        fromService:
           type: web
-          name: backend-service
-          property: host
+          name: go-2-market-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+    
+    # Persistent Disk Storage for Uploads
+    disk:
+      name: ecommerce-product-uploads
+      mountPath: /var/data
+      sizeGB: 1  # Free tier: 1GB max
 
-databases:
-  - name: my-postgres-db
+  # ===========================================================================
+  # GO-2 Market Frontend (React/Vite)
+  # ===========================================================================
+  - type: web
+    name: go-2-market-frontend
+    runtime: static
     plan: free
-    databaseName: my_app_db
-    user: admin
+    repo: https://github.com/angelazakaim/super_frontend.git
+    branch: main
+    region: oregon  # Same region as backend for better performance
+    
+    # Build Command
+    buildCommand: npm install && npm run build
+    
+    # Static files directory
+    staticPublishPath: ./dist
+    
+    # Auto-deploy
+    autoDeploy: true
+    
+    # Build Filter - Only rebuild when these change
+    buildFilter:
+      paths:
+        - src/**
+        - public/**
+        - index.html
+        - package.json
+        - vite.config.ts
+        - tsconfig.json
+    
+    # Environment Variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      # API URL - Auto-inject backend URL
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ecommerce-backend
+          envVarKey: RENDER_EXTERNAL_URL
+    
+    # Security Headers
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      
+      - path: /*
+        name: Permissions-Policy
+        value: geolocation=(), microphone=(), camera=()
+      
+      - path: /*
+        name: X-XSS-Protection
+        value: 1; mode=block
+    
+    # SPA Routing - All routes serve index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+# ===========================================================================
+# PostgreSQL Database
+# ===========================================================================
+databases:
+  - name: ecommerce-postgres-db
+    plan: free  # Free for 90 days, then $7/month
+    databaseName: ecommerce_db
+    user: ecommerce_user
+    region: oregon  # Match backend region for lower latency
+    ipAllowList: []  # Empty = allow all Render services
