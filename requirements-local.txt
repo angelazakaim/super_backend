@@ -11,6 +11,7 @@ Flask-JWT-Extended==4.5.3
 Flask-Limiter==3.5.0
 Flask-Migrate==4.0.5
 Flask-SQLAlchemy==3.1.1
+freez==0.0.0
 gunicorn==21.2.0
 idna==3.11
 itsdangerous==2.2.0
@@ -24,10 +25,10 @@ mdurl==0.1.2
 ordered-set==4.1.0
 packaging==26.0
 pillow==12.1.0
-# PostgreSQL support (keep for Render/Heroku deployments)
-psycopg2-binary==2.9.11
-# SQL Server support (for Docker/on-premise deployments)
-pyodbc==5.2.0
+# PostgreSQL driver removed - not needed for local development with SQLite
+# psycopg2-binary==2.9.11
+# SQL Server driver removed - causes build errors on Windows without C++ tools
+# pyodbc==5.2.0
 Pygments==2.19.2
 PyJWT==2.10.1
 python-dateutil==2.8.2
@@ -38,3 +39,7 @@ SQLAlchemy==2.0.36
 typing_extensions==4.15.0
 Werkzeug==3.0.1
 wrapt==2.0.1
+
+# Note: This file is for LOCAL DEVELOPMENT on Windows
+# Docker uses the full requirements.txt which includes database drivers
+# Use SQLite for local dev: DATABASE_URL=sqlite:///instance/ecommerce_dev.db
